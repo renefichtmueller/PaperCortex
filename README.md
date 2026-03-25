@@ -20,6 +20,10 @@
   </p>
 </p>
 
+<p align="center">
+  <img src="docs/assets/demo.svg" alt="PaperCortex Demo" width="700" />
+</p>
+
 ---
 
 ## What is PaperCortex?

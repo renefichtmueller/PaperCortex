@@ -1,0 +1,215 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 680" width="820" height="680">
+  <style>
+    @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+    .cursor { animation: blink 1s step-end infinite; }
+    .term-bg { fill: #1a1b26; }
+    .term-border { fill: #24283b; rx: 10; ry: 10; }
+    .title-bar { fill: #1f2335; }
+    .btn-close { fill: #f7768e; }
+    .btn-min { fill: #e0af68; }
+    .btn-max { fill: #9ece6a; }
+    .prompt { fill: #7aa2f7; }
+    .cmd { fill: #c0caf5; }
+    .comment { fill: #565f89; }
+    .success { fill: #9ece6a; }
+    .info { fill: #7dcfff; }
+    .heading { fill: #bb9af7; }
+    .number { fill: #ff9e64; }
+    .dim { fill: #565f89; }
+    .text { fill: #a9b1d6; }
+    .highlight { fill: #e0af68; }
+    .white { fill: #c0caf5; }
+    .title-text { fill: #787c99; font-size: 13px; }
+
+    /* Animation: lines appear sequentially */
+    .line { opacity: 0; }
+    .line.l1  { animation: fadein 0.1s 0.5s forwards; }
+    .line.l2  { animation: fadein 0.1s 1.2s forwards; }
+    .line.l3  { animation: fadein 0.1s 2.0s forwards; }
+    .line.l4  { animation: fadein 0.1s 2.5s forwards; }
+    .line.l5  { animation: fadein 0.1s 3.0s forwards; }
+    .line.l6  { animation: fadein 0.1s 3.4s forwards; }
+    .line.l7  { animation: fadein 0.1s 3.8s forwards; }
+    .line.l8  { animation: fadein 0.1s 4.2s forwards; }
+    .line.l9  { animation: fadein 0.1s 5.0s forwards; }
+    .line.l10 { animation: fadein 0.1s 5.8s forwards; }
+    .line.l11 { animation: fadein 0.1s 6.2s forwards; }
+    .line.l12 { animation: fadein 0.1s 6.5s forwards; }
+    .line.l13 { animation: fadein 0.1s 6.8s forwards; }
+    .line.l14 { animation: fadein 0.1s 7.1s forwards; }
+    .line.l15 { animation: fadein 0.1s 7.4s forwards; }
+    .line.l16 { animation: fadein 0.1s 8.2s forwards; }
+    .line.l17 { animation: fadein 0.1s 8.8s forwards; }
+    .line.l18 { animation: fadein 0.1s 9.2s forwards; }
+    .line.l19 { animation: fadein 0.1s 9.5s forwards; }
+    .line.l20 { animation: fadein 0.1s 9.8s forwards; }
+    .line.l21 { animation: fadein 0.1s 10.1s forwards; }
+    .line.l22 { animation: fadein 0.1s 10.4s forwards; }
+    .line.l23 { animation: fadein 0.1s 10.7s forwards; }
+    .line.l24 { animation: fadein 0.1s 11.0s forwards; }
+    .line.l25 { animation: fadein 0.1s 11.3s forwards; }
+    .line.l26 { animation: fadein 0.1s 11.6s forwards; }
+    .line.l27 { animation: fadein 0.1s 12.4s forwards; }
+    .line.l28 { animation: fadein 0.1s 12.8s forwards; }
+    .line.l29 { animation: fadein 0.1s 13.1s forwards; }
+    .line.l30 { animation: fadein 0.1s 13.4s forwards; }
+    .line.l31 { animation: fadein 0.1s 13.7s forwards; }
+    .line.l32 { animation: fadein 0.1s 14.0s forwards; }
+    .line.l33 { animation: fadein 0.1s 14.3s forwards; }
+
+    @keyframes fadein { to { opacity: 1; } }
+  </style>
+
+  <defs>
+    <clipPath id="termClip">
+      <rect x="0" y="0" width="820" height="680" rx="10" ry="10"/>
+    </clipPath>
+  </defs>
+
+  <!-- Terminal window -->
+  <g clip-path="url(#termClip)">
+    <!-- Background -->
+    <rect class="term-border" x="0" y="0" width="820" height="680"/>
+    <rect class="term-bg" x="0" y="38" width="820" height="642"/>
+
+    <!-- Title bar -->
+    <rect class="title-bar" x="0" y="0" width="820" height="38"/>
+    <circle class="btn-close" cx="20" cy="19" r="6"/>
+    <circle class="btn-min" cx="40" cy="19" r="6"/>
+    <circle class="btn-max" cx="60" cy="19" r="6"/>
+    <text class="title-text" x="410" y="24" text-anchor="middle" font-family="SF Mono, Menlo, monospace">papercortex - zsh - 120x40</text>
+
+    <!-- Terminal content -->
+    <g font-family="SF Mono, Menlo, Consolas, monospace" font-size="12.5" dominant-baseline="hanging">
+
+      <!-- Line 1: docker compose -->
+      <g class="line l1" transform="translate(16, 52)">
+        <text><tspan class="prompt">$</tspan><tspan class="cmd"> docker compose up -d</tspan></text>
+      </g>
+
+      <!-- Line 2: container started -->
+      <g class="line l2" transform="translate(16, 70)">
+        <text><tspan class="success">&#x2713; Container papercortex Started</tspan></text>
+      </g>
+
+      <!-- Line 3: blank + comment -->
+      <g class="line l3" transform="translate(16, 96)">
+        <text><tspan class="prompt">$</tspan><tspan class="comment"> # Connect to Paperless-ngx...</tspan></text>
+      </g>
+
+      <!-- Line 4: status command -->
+      <g class="line l4" transform="translate(16, 114)">
+        <text><tspan class="prompt">$</tspan><tspan class="cmd"> papercortex status</tspan></text>
+      </g>
+
+      <!-- Line 5-8: status output -->
+      <g class="line l5" transform="translate(16, 132)">
+        <text class="success">&#x1F7E2; Connected to Paperless-ngx (2,847 documents)</text>
+      </g>
+      <g class="line l6" transform="translate(16, 150)">
+        <text class="success">&#x1F7E2; Ollama running (qwen2.5:14b)</text>
+      </g>
+      <g class="line l7" transform="translate(16, 168)">
+        <text class="success">&#x1F7E2; Vector store: 2,847 documents indexed</text>
+      </g>
+      <g class="line l8" transform="translate(16, 186)">
+        <text class="success">&#x1F7E2; MCP Server: listening on stdio</text>
+      </g>
+
+      <!-- Line 9: search command -->
+      <g class="line l9" transform="translate(16, 212)">
+        <text><tspan class="prompt">$</tspan><tspan class="cmd"> papercortex search </tspan><tspan class="highlight">"invoices from Amazon over 100 EUR"</tspan></text>
+      </g>
+
+      <!-- Line 10: search heading -->
+      <g class="line l10" transform="translate(16, 230)">
+        <text class="info">&#x1F50D; Semantic search: "invoices from Amazon over 100 EUR"</text>
+      </g>
+
+      <!-- Line 11-13: search results -->
+      <g class="line l11" transform="translate(16, 254)">
+        <text><tspan class="white">  #1  </tspan><tspan class="text">Amazon Invoice DE-2025-4821</tspan><tspan class="number">     248.90 EUR</tspan><tspan class="dim">  2025-03-15</tspan><tspan class="success">  (score: 0.96)</tspan></text>
+      </g>
+      <g class="line l12" transform="translate(16, 272)">
+        <text><tspan class="white">  #2  </tspan><tspan class="text">Amazon Marketplace Order</tspan><tspan class="number">        159.99 EUR</tspan><tspan class="dim">  2025-02-28</tspan><tspan class="success">  (score: 0.94)</tspan></text>
+      </g>
+      <g class="line l13" transform="translate(16, 290)">
+        <text><tspan class="white">  #3  </tspan><tspan class="text">Amazon Business Purchase</tspan><tspan class="number">        112.50 EUR</tspan><tspan class="dim">  2025-01-10</tspan><tspan class="success">  (score: 0.91)</tspan></text>
+      </g>
+
+      <!-- Line 14: result count -->
+      <g class="line l14" transform="translate(16, 314)">
+        <text class="dim">3 results in 0.8s</text>
+      </g>
+
+      <!-- Line 15: receipt extract command -->
+      <g class="line l15" transform="translate(16, 340)">
+        <text><tspan class="prompt">$</tspan><tspan class="cmd"> papercortex receipt extract </tspan><tspan class="dim">--document-id 4821</tspan></text>
+      </g>
+
+      <!-- Line 16: extracting -->
+      <g class="line l16" transform="translate(16, 358)">
+        <text class="info">&#x1F9FE; Extracting receipt data...</text>
+      </g>
+
+      <!-- Line 17-25: receipt output -->
+      <g class="line l17" transform="translate(16, 382)">
+        <text><tspan class="dim">  Vendor:</tspan><tspan class="text">     Amazon EU S.a.r.l.</tspan></text>
+      </g>
+      <g class="line l18" transform="translate(16, 400)">
+        <text><tspan class="dim">  Date:</tspan><tspan class="text">       2025-03-15</tspan></text>
+      </g>
+      <g class="line l19" transform="translate(16, 418)">
+        <text><tspan class="dim">  Amount:</tspan><tspan class="number">     248.90 EUR</tspan><tspan class="dim"> (net: 209.16 EUR)</tspan></text>
+      </g>
+      <g class="line l20" transform="translate(16, 436)">
+        <text><tspan class="dim">  Tax:</tspan><tspan class="text">        19% VAT (39.74 EUR)</tspan></text>
+      </g>
+      <g class="line l21" transform="translate(16, 454)">
+        <text class="dim">  Items:</text>
+      </g>
+      <g class="line l22" transform="translate(16, 472)">
+        <text><tspan class="text">    - USB-C Hub 12-in-1</tspan><tspan class="number">          49.99 EUR</tspan></text>
+      </g>
+      <g class="line l23" transform="translate(16, 490)">
+        <text><tspan class="text">    - Monitor Arm Dual</tspan><tspan class="number">           89.99 EUR</tspan></text>
+      </g>
+      <g class="line l24" transform="translate(16, 508)">
+        <text><tspan class="text">    - Webcam 4K</tspan><tspan class="number">                 108.92 EUR</tspan></text>
+      </g>
+      <g class="line l25" transform="translate(16, 526)">
+        <text><tspan class="dim">  Invoice:</tspan><tspan class="highlight">    INV-DE-2025-4821</tspan></text>
+      </g>
+
+      <!-- Line 26: export command -->
+      <g class="line l26" transform="translate(16, 552)">
+        <text><tspan class="prompt">$</tspan><tspan class="cmd"> papercortex export </tspan><tspan class="dim">--format datev --period 2025-Q1</tspan></text>
+      </g>
+
+      <!-- Line 27: export heading -->
+      <g class="line l27" transform="translate(16, 570)">
+        <text class="heading">&#x1F4CA; DATEV Export: Q1 2025</text>
+      </g>
+
+      <!-- Line 28-31: export results -->
+      <g class="line l28" transform="translate(16, 594)">
+        <text><tspan class="success">  &#x2713; 47 receipts processed</tspan></text>
+      </g>
+      <g class="line l29" transform="translate(16, 612)">
+        <text><tspan class="success">  &#x2713; 43 matched to bank transactions</tspan></text>
+      </g>
+      <g class="line l30" transform="translate(16, 630)">
+        <text><tspan class="highlight">  &#x2713; 4 unmatched (flagged for review)</tspan></text>
+      </g>
+      <g class="line l31" transform="translate(16, 648)">
+        <text><tspan class="success">  &#x2713; Exported to:</tspan><tspan class="text"> exports/datev_2025_q1.csv</tspan></text>
+      </g>
+
+      <!-- Line 32: Done -->
+      <g class="line l32" transform="translate(16, 666)">
+        <text class="white" font-weight="bold">Done!</text>
+      </g>
+
+    </g>
+  </g>
+</svg>
