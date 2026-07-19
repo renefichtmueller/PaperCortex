@@ -74,24 +74,31 @@ const ctx: ToolContext = { paperless, ollama, vectorStore };
 
 // ---------------------------------------------------------------------------
 // MCP Server setup
+//
+// Builds a fresh Server instance per call. The SDK's Server.connect() can
+// only ever be bound to one transport at a time (throws "Already connected
+// to a transport" if called twice on the same instance) - since /sse serves
+// one long-lived connection per client and multiple clients can connect
+// concurrently, each connection needs its own Server, not a shared one.
 // ---------------------------------------------------------------------------
 
-const server = new Server(
-  {
-    name: "papercortex",
-    version: "0.1.0",
-  },
-  {
-    capabilities: {
-      tools: {},
+function createMcpServer(): Server {
+  const server = new Server(
+    {
+      name: "papercortex",
+      version: "0.1.0",
     },
-  },
-);
+    {
+      capabilities: {
+        tools: {},
+      },
+    },
+  );
 
-/**
- * List all available PaperCortex tools.
- */
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  /**
+   * List all available PaperCortex tools.
+   */
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "papercortex_search",
@@ -234,7 +241,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true,
     };
   }
-});
+  });
+
+  return server;
+}
+
+// Single shared instance for the stdio path (one local, non-concurrent client).
+const server = createMcpServer();
 
 // ---------------------------------------------------------------------------
 // Start server — stdio (local) or http (remote / Cloudflare Tunnel)
@@ -260,7 +273,8 @@ async function startHttp(): Promise<void> {
         res.on("close", () => {
           delete sessions[transport.sessionId];
         });
-        await server.connect(transport);
+        const connectionServer = createMcpServer();
+        await connectionServer.connect(transport);
         return;
       }
 

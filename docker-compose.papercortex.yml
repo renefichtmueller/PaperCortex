@@ -1,0 +1,21 @@
+services:
+  papercortex:
+    build: .
+    container_name: papercortex
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3170:3170'
+    volumes:
+      - papercortex-data:/app/data
+    env_file:
+      - .env
+    networks:
+      - paperless
+
+networks:
+  paperless:
+    external: true
+    name: paperless-ngx_default
+
+volumes:
+  papercortex-data:
