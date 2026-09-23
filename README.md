@@ -121,13 +121,18 @@ Import your bank statement as CSV and let PaperCortex automatically match transa
 
 ### DATEV Export
 
-For German businesses and freelancers, PaperCortex generates DATEV-compatible export files that your Steuerberater can import directly:
+For German businesses and freelancers, PaperCortex generates **real DATEV-Format files** (EXTF header, Buchungsstapel format version 13, CP1252) that import into DATEV Rechnungswesen / Unternehmen Online without manual fixing. Three commands, zero guesswork:
 
-- **DATEV CSV format** (Buchungsstapel) — the standard German accounting import format
-- **SKR03 / SKR04** account mapping
-- **Automatic account assignment** based on document classification
-- **Beleglink** — links each DATEV entry back to the original document in Paperless-ngx
-- **Period exports** — monthly, quarterly, or annual
+```bash
+npm run datev:init                        # one-time wizard (asks 6 questions, validates each)
+npm run datev:check  -- --month 2026-08   # dry run: what WOULD be exported, with warnings
+npm run datev:export -- --month 2026-08   # writes EXTF_Buchungsstapel_*.csv to ./exports
+```
+
+- **SKR03 / SKR04** account mapping with per-category overrides
+- **Never silently wrong**: receipts with broken dates, foreign currency, or odd tax rates are skipped and reported with the reason — not guessed into the books
+- **One file per fiscal year**, automatically split, as DATEV requires
+- Step-by-step guide (German + English): [docs/datev.md](docs/datev.md)
 
 Also supports plain CSV export for use with any accounting software worldwide.
 

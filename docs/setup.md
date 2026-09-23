@@ -105,3 +105,11 @@ On first run, you need to embed your existing documents. This will be automated 
 ### Slow first query
 - The first embedding generation may take longer as Ollama loads the model into memory
 - Subsequent queries will be faster once the model is loaded
+
+## DATEV (German accounting)
+
+Run the wizard once, then preview and export — see [datev.md](datev.md):
+
+```bash
+npm run datev:init
+```

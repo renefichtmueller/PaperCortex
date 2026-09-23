@@ -13,7 +13,9 @@
     "test:coverage": "vitest --coverage",
     "receipt:extract": "tsx src/receipt/extractor.ts",
     "receipt:match": "tsx src/receipt/matcher.ts",
-    "receipt:export": "tsx src/receipt/datev.ts"
+    "datev:init": "tsx src/cli/datev.ts init",
+    "datev:check": "tsx src/cli/datev.ts check",
+    "datev:export": "tsx src/cli/datev.ts export"
   },
   "keywords": [
     "paperless-ngx",
@@ -52,6 +54,7 @@
     "eslint": "^9.17.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^3.0.0"
   }
 }

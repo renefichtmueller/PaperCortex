@@ -110,6 +110,8 @@ export interface DocumentSearchParams {
   readonly tags__id__none?: readonly number[];
   readonly created__date__gt?: string;
   readonly created__date__lt?: string;
+  readonly created__date__gte?: string;
+  readonly created__date__lte?: string;
   readonly ordering?: string;
   readonly page?: number;
   readonly page_size?: number;

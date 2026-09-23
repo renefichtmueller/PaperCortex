@@ -62,40 +62,21 @@ Results include a confidence score (0.0 - 1.0) and match reasons.
 
 ## DATEV Export
 
-### Format
+The DATEV pipeline has its own step-by-step guide: **[datev.md](datev.md)**.
 
-PaperCortex generates DATEV Buchungsstapel (posting batch) format CSV, compatible with:
-
-- DATEV Unternehmen Online
-- lexoffice
-- sevDesk
-- FastBill
-- Any DATEV-import-capable software
-
-### Account Mapping (SKR03)
-
-| Category | Account | Description |
-|---|---|---|
-| office_supplies | 4930 | Buerokosten |
-| travel | 4660 | Reisekosten |
-| food | 4650 | Bewirtungskosten |
-| telephone | 4920 | Telefon |
-| postage | 4910 | Porto |
-| rent | 4210 | Miete |
-| advertising | 4600 | Werbekosten |
-| software | 4964 | Software |
-| consulting | 4950 | Rechts- und Beratungskosten |
-| default | 4900 | Sonstige Aufwendungen |
-
-### Export via CLI
+Quick reference:
 
 ```bash
-# Export all receipts from March 2024 as DATEV CSV
-npm run receipt:export -- --format datev --year 2024 --month 03
+npm run datev:init                        # one-time setup wizard
+npm run datev:check  -- --month 2026-08   # dry run with full report
+npm run datev:export -- --month 2026-08   # write EXTF file(s) to ./exports
 ```
 
-### Export via MCP Server
+Via MCP Server:
 
 ```
-Export documents #100, #101, #102 as DATEV CSV
+Export documents #100, #101, #102 as DATEV
 ```
+
+The tool writes the EXTF file(s) to the export directory and reports every
+receipt it skipped, with the reason.

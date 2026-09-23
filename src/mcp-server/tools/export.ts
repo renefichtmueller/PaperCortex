@@ -1,11 +1,20 @@
 /**
  * DATEV/CSV export tool for the PaperCortex MCP Server.
  *
- * Exports receipt data in accounting-compatible formats.
+ * DATEV mode writes real EXTF files (Buchungsstapel format version 13,
+ * CP1252) to the export directory and reports exactly which receipts
+ * were skipped and why. Configuration problems come back as instructions
+ * ("run npm run datev:init"), not stack traces. CSV mode stays inline
+ * for quick spreadsheet use.
  */
 
-import { createReceiptExtractor } from "../../receipt/extractor.js";
-import { createDatevExporter } from "../../receipt/datev.js";
+import * as fs from "fs";
+import * as path from "path";
+
+import { loadStoredConfig, resolveDatevConfig } from "../../datev/config.js";
+import { formatRunReport, runDatevExport } from "../../datev/export-run.js";
+import { createReceiptCache } from "../../datev/receipt-cache.js";
+import { createDatevService } from "../../datev/service.js";
 import type { ToolContext } from "../index.js";
 
 // ---------------------------------------------------------------------------
@@ -17,100 +26,91 @@ interface ExportArgs {
   readonly format?: "datev" | "csv";
 }
 
+type ToolResult = { content: Array<{ type: "text"; text: string }> };
+
+const text = (value: string): ToolResult => ({
+  content: [{ type: "text", text: value }],
+});
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 
 /**
  * Handle a `papercortex_export` tool call.
- *
- * 1. Extract receipt data from all specified documents.
- * 2. Format as DATEV or generic CSV.
- * 3. Return the CSV content.
- *
- * TODO: Add file output option (save to disk)
- * TODO: Add date range filtering
- * TODO: Add DATEV header metadata (consultant/client numbers from config)
  */
 export async function handleExport(
   ctx: ToolContext,
   args: Record<string, unknown>,
-): Promise<{ content: Array<{ type: "text"; text: string }> }> {
+): Promise<ToolResult> {
   const { documentIds, format = "datev" } = args as unknown as ExportArgs;
 
   if (!documentIds || documentIds.length === 0) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: "Error: at least one document ID is required for export.",
-        },
-      ],
-    };
+    return text("Error: at least one document ID is required for export.");
   }
 
-  // Extract receipt data from all documents
-  const extractor = createReceiptExtractor({
-    ollama: ctx.ollama,
-    paperless: ctx.paperless,
-  });
-
-  const receipts = await extractor.extractBatch(documentIds);
-
-  if (format === "datev") {
-    // TODO: Read consultant/client numbers from configuration
-    const exporter = createDatevExporter({
-      consultantNumber: 0,
-      clientNumber: 0,
+  const dataDir = process.env["PAPERCORTEX_DATA_DIR"] ?? "./data";
+  fs.mkdirSync(dataDir, { recursive: true });
+  const cache = createReceiptCache(path.join(dataDir, "receipts.db"));
+  try {
+    const service = createDatevService({
+      paperless: ctx.paperless,
+      ollama: ctx.ollama,
+      cache,
     });
+    const { receipts, failures } = await service.collectReceipts(documentIds);
 
-    const receiptsForExport = receipts.map((r) => ({
-      documentId: r.documentId,
-      vendor: r.vendor,
-      date: r.date,
-      totalAmount: r.totalAmount,
-      taxRate: r.taxRate,
-      category: r.category,
-    }));
+    if (format === "datev") {
+      const config = resolveDatevConfig(loadStoredConfig());
+      if (config === null) {
+        return text(
+          "DATEV ist noch nicht eingerichtet. / DATEV is not configured yet.\n" +
+            'Im PaperCortex-Verzeichnis einmalig ausfuehren / run once:\n' +
+            "  npm run datev:init",
+        );
+      }
+      const result = runDatevExport(receipts, config);
 
-    const csv = exporter.generateCsv(receiptsForExport);
+      const exportDir = process.env["PAPERCORTEX_EXPORT_DIR"] ?? "./exports";
+      fs.mkdirSync(exportDir, { recursive: true });
+      const paths: string[] = [];
+      for (const batch of result.batches) {
+        const target = path.resolve(exportDir, batch.filename);
+        fs.writeFileSync(target, batch.file);
+        paths.push(target);
+      }
 
-    return {
-      content: [
-        {
-          type: "text",
-          text:
-            `DATEV export for ${receipts.length} receipt(s):\n\n` +
-            "```csv\n" +
-            csv +
-            "\n```\n\n" +
-            "Copy this CSV content into a file and import into your " +
-            "DATEV-compatible accounting software.",
-        },
-      ],
-    };
+      const failureLines = failures.map(
+        (f) => `  ✗ Beleg #${f.documentId}: Extraktion fehlgeschlagen (${f.error})`,
+      );
+      const report = [
+        formatRunReport(result),
+        ...failureLines,
+        ...(paths.length > 0
+          ? [
+              "",
+              "Geschriebene Datei(en):",
+              ...paths.map((p) => `  ${p}`),
+              "",
+              "Import in DATEV: Bestand -> Importieren -> DATEV-Format. Details: docs/datev.md",
+            ]
+          : []),
+      ].join("\n");
+      return text(report);
+    }
+
+    const header =
+      "Document ID;Vendor;Date;Amount;Tax Rate;Currency;Category";
+    const rows = receipts.map(
+      (r) =>
+        `${r.documentId};${r.vendor};${r.date};${r.totalAmount.toFixed(2)};` +
+        `${r.taxRate ?? ""};${r.currency ?? "EUR"};${r.category ?? ""}`,
+    );
+    const csv = [header, ...rows].join("\n");
+    return text(
+      `CSV export for ${receipts.length} receipt(s):\n\n\`\`\`csv\n${csv}\n\`\`\``,
+    );
+  } finally {
+    cache.close();
   }
-
-  // Generic CSV format
-  const header = "Document ID;Vendor;Date;Amount;Tax Rate;Tax Amount;Currency;Category";
-  const rows = receipts.map(
-    (r) =>
-      `${r.documentId};${r.vendor};${r.date};${r.totalAmount.toFixed(2)};` +
-      `${r.taxRate ?? ""};${r.taxAmount?.toFixed(2) ?? ""};${r.currency};${r.category ?? ""}`,
-  );
-
-  const csv = [header, ...rows].join("\n");
-
-  return {
-    content: [
-      {
-        type: "text",
-        text:
-          `CSV export for ${receipts.length} receipt(s):\n\n` +
-          "```csv\n" +
-          csv +
-          "\n```",
-      },
-    ],
-  };
 }
