@@ -126,6 +126,7 @@ A bilingual (German/English) settings page ships with the server (default
 DATEV master-data form, and a click-through export flow — load receipts,
 analyze with progress, preview with warnings, reconcile against a bank CSV,
 download. See [docs/datev.md](docs/datev.md).
+Running UnRaid? There is a ready-made [Community Apps template](docs/unraid/README.md).
 
 <p align="center">
   <img src="docs/assets/webui-settings.png" alt="PaperCortex web UI — DATEV settings" width="760" />

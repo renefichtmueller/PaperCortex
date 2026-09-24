@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>PaperCortex</Name>
+  <Repository>ghcr.io/renefichtmueller/papercortex:latest</Repository>
+  <Registry>https://github.com/renefichtmueller/PaperCortex/pkgs/container/papercortex</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/renefichtmueller/PaperCortex/issues</Support>
+  <Project>https://github.com/renefichtmueller/PaperCortex</Project>
+  <Overview>AI document intelligence for Paperless-ngx: semantic search, receipt extraction, and one-click DATEV export with a built-in bilingual (DE/EN) web UI. 100% local via Ollama - no cloud, no telemetry. Ships as an MCP server for Claude Code and other agents.&#13;&#10;&#13;&#10;Requirements: a running Paperless-ngx instance and a running Ollama instance (both may live on the same UnRaid box).&#13;&#10;&#13;&#10;IMPORTANT: set "Allowed Hosts" to the hostname/IP you use to open the web UI (e.g. tower.local or your UnRaid IP) - requests from other host names are rejected as a DNS-rebinding defense.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8140]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/renefichtmueller/PaperCortex/main/docs/assets/papercortex-logo.svg</Icon>
+  <ExtraParams/>
+  <Config Name="Web UI Port" Target="8140" Default="8140" Mode="tcp" Description="Settings page, system check, DATEV export" Type="Port" Display="always" Required="true" Mask="false">8140</Config>
+  <Config Name="MCP (SSE) Port" Target="3100" Default="3100" Mode="tcp" Description="MCP server endpoint for Claude Code / agents (SSE transport)" Type="Port" Display="advanced" Required="false" Mask="false">3100</Config>
+  <Config Name="Data" Target="/app/data" Default="/mnt/user/appdata/papercortex" Mode="rw" Description="Configuration, caches, search index, and DATEV export files" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/papercortex</Config>
+  <Config Name="Paperless URL" Target="PAPERLESS_URL" Default="http://YOUR-UNRAID-IP:8000" Description="Base URL of your Paperless-ngx instance" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Paperless API Token" Target="PAPERLESS_TOKEN" Default="" Description="Paperless-ngx: profile menu -&gt; My Profile -&gt; API Auth Token" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Ollama URL" Target="OLLAMA_URL" Default="http://YOUR-UNRAID-IP:11434" Description="Base URL of your Ollama instance" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Allowed Hosts" Target="WEBUI_ALLOWED_HOSTS" Default="" Description="Comma-separated hostnames/IPs allowed to open the web UI, e.g. tower.local or your UnRaid IP. Required for LAN access (DNS-rebinding defense)." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Web UI Access Code" Target="WEBUI_TOKEN" Default="" Description="Optional access code for the web UI. Strongly recommended when the port is reachable beyond your own machine." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Analysis Model" Target="OLLAMA_MODEL" Default="qwen2.5:14b" Description="Ollama model for receipt analysis (ollama pull qwen2.5:14b)" Type="Variable" Display="advanced" Required="false" Mask="false">qwen2.5:14b</Config>
+  <Config Name="Embedding Model" Target="OLLAMA_EMBEDDING_MODEL" Default="nomic-embed-text" Description="Ollama model for the semantic search index (ollama pull nomic-embed-text)" Type="Variable" Display="advanced" Required="false" Mask="false">nomic-embed-text</Config>
+  <Config Name="Vision Model (optional)" Target="OLLAMA_VISION_MODEL" Default="" Description="Optional multimodal model for photo receipts with poor OCR, e.g. minicpm-v" Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Transport" Target="TRANSPORT" Default="http" Description="Keep 'http' on UnRaid: serves the MCP endpoint over SSE and keeps the container running" Type="Variable" Display="advanced" Required="false" Mask="false">http</Config>
+  <Config Name="Export Directory" Target="PAPERCORTEX_EXPORT_DIR" Default="/app/data/exports" Description="Where generated DATEV files are stored (inside the Data share)" Type="Variable" Display="advanced" Required="false" Mask="false">/app/data/exports</Config>
+</Container>
