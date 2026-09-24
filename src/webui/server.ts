@@ -25,6 +25,7 @@ import {
   saveSettings,
   type WebUiDeps,
 } from "./api.js";
+import { createIndexJob, type IndexJob } from "./indexer.js";
 import { createAnalyzeJobs, type AnalyzeJobs } from "./jobs.js";
 import { PAGE_HTML } from "./page.js";
 import { createTicketStore, type TicketStore } from "./tickets.js";
@@ -101,6 +102,7 @@ function isAuthorized(req: http.IncomingMessage, token?: string): boolean {
 async function route(
   config: WebUiServerConfig,
   jobs: AnalyzeJobs,
+  indexJob: IndexJob,
   tickets: TicketStore,
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -182,6 +184,16 @@ async function route(
     }
     case "GET /api/job":
       return sendJson(res, 200, jobs.status());
+    case "POST /api/index": {
+      const body = (await readJsonBody(req)) as { refresh?: boolean };
+      const started = indexJob.start(body.refresh === true);
+      return sendJson(res, started ? 202 : 409, {
+        started,
+        ...(started ? {} : { error: "Es läuft bereits eine Indexierung" }),
+      });
+    }
+    case "GET /api/index-job":
+      return sendJson(res, 200, indexJob.status());
     case "GET /api/preview":
       return sendJson(
         res,
@@ -211,9 +223,10 @@ async function route(
 
 export function createWebUiServer(config: WebUiServerConfig): http.Server {
   const jobs = createAnalyzeJobs(config.deps.service);
+  const indexJob = createIndexJob(config.deps);
   const tickets = createTicketStore();
   return http.createServer((req, res) => {
-    route(config, jobs, tickets, req, res).catch((error: unknown) => {
+    route(config, jobs, indexJob, tickets, req, res).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       if (!res.headersSent) sendJson(res, 400, { error: message });
       else res.end();

@@ -7,6 +7,7 @@
 import { join } from "path";
 
 import type { OllamaClient } from "../embeddings/ollama.js";
+import type { VectorStore } from "../embeddings/store.js";
 import type { PaperlessClient } from "../paperless/client.js";
 import { createReceiptCache } from "../datev/receipt-cache.js";
 import { createDatevService } from "../datev/service.js";
@@ -16,7 +17,7 @@ import type { WebUiDeps } from "./api.js";
 export interface WebUiClients {
   readonly paperless: PaperlessClient;
   readonly ollama: OllamaClient;
-  readonly vectorStore: { count(): number };
+  readonly vectorStore: VectorStore;
 }
 
 /**
@@ -40,6 +41,7 @@ export function maybeStartWebUi(clients: WebUiClients): boolean {
       }),
       cache,
       vectorStore: clients.vectorStore,
+      embed: (text: string) => clients.ollama.embed(text),
       ollamaBaseUrl: process.env["OLLAMA_URL"] ?? "http://localhost:11434",
       ollamaModel: process.env["OLLAMA_MODEL"] ?? "qwen2.5:14b",
       ollamaEmbeddingModel:

@@ -26,6 +26,10 @@ export interface ReceiptForExport {
   readonly category: string | null;
   readonly currency?: string;
   readonly confidence?: number;
+  /** Net amount as printed on the receipt, for the arithmetic sanity check. */
+  readonly subtotal?: number | null;
+  /** Tax amount as printed on the receipt, for the arithmetic sanity check. */
+  readonly taxAmount?: number | null;
 }
 
 export interface BookingPreview {
@@ -56,6 +60,39 @@ export interface DatevBatch {
 const TAX_KEYS: Record<number, string> = { 19: "9", 7: "8", 0: "" };
 
 const LOW_CONFIDENCE_THRESHOLD = 0.6;
+/** Rounding slack for receipt arithmetic (printed values are rounded). */
+const AMOUNT_TOLERANCE = 0.02;
+
+/**
+ * Arithmetic sanity checks against the amounts printed on the receipt.
+ * LLM extraction occasionally misreads a digit; when net + tax does not
+ * add up to gross, or the tax amount does not match the tax rate, a human
+ * should look before the file reaches the tax advisor.
+ */
+function arithmeticWarnings(
+  receipt: ReceiptForExport,
+  effectiveTaxRate: number,
+): string[] {
+  const warnings: string[] = [];
+  const { subtotal, taxAmount, totalAmount } = receipt;
+  if (subtotal != null && taxAmount != null) {
+    if (Math.abs(subtotal + taxAmount - totalAmount) > AMOUNT_TOLERANCE) {
+      warnings.push(
+        `Netto ${subtotal.toFixed(2)} plus USt ${taxAmount.toFixed(2)} ergibt nicht Brutto ${totalAmount.toFixed(2)}, Beleg bitte prüfen`,
+      );
+    }
+  }
+  if (taxAmount != null && effectiveTaxRate > 0) {
+    const expectedTax = totalAmount - totalAmount / (1 + effectiveTaxRate / 100);
+    const tolerance = Math.max(0.03, totalAmount * 0.01);
+    if (Math.abs(expectedTax - taxAmount) > tolerance) {
+      warnings.push(
+        `USt-Betrag ${taxAmount.toFixed(2)} passt nicht zu ${effectiveTaxRate}% auf ${totalAmount.toFixed(2)} (erwartet ~${expectedTax.toFixed(2)}), Beleg bitte prüfen`,
+      );
+    }
+  }
+  return warnings;
+}
 
 function parseIsoDate(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -137,6 +174,7 @@ export function mapReceiptToBooking(
   ) {
     warnings.push("Niedrige Erkennungssicherheit, Beleg bitte gegenprüfen");
   }
+  warnings.push(...arithmeticWarnings(receipt, taxRate));
 
   return {
     documentId: receipt.documentId,
@@ -169,6 +207,35 @@ function assertSingleFiscalYear(
   return [...starts][0];
 }
 
+export function duplicateKey(booking: BookingPreview): string {
+  return `${booking.vendor.trim().toLowerCase()}|${booking.date}|${booking.amount.toFixed(2)}`;
+}
+
+/**
+ * A twice-scanned receipt books twice. Same vendor, same date, and same
+ * amount inside one batch is suspicious enough to flag on every affected
+ * booking; the human decides which one to untick.
+ */
+export function flagDuplicates(bookings: readonly BookingPreview[]): BookingPreview[] {
+  const groups = new Map<string, number[]>();
+  for (const booking of bookings) {
+    const key = duplicateKey(booking);
+    groups.set(key, [...(groups.get(key) ?? []), booking.documentId]);
+  }
+  return bookings.map((booking) => {
+    const ids = groups.get(duplicateKey(booking)) ?? [];
+    if (ids.length < 2) return booking;
+    const others = ids.filter((id) => id !== booking.documentId);
+    return {
+      ...booking,
+      warnings: [
+        ...booking.warnings,
+        `Möglicher Doppel-Scan: gleicher Händler, gleiches Datum, gleicher Betrag wie Beleg #${others.join(", #")}`,
+      ],
+    };
+  });
+}
+
 /**
  * Build a complete, importable DATEV batch from extracted receipts.
  */
@@ -181,7 +248,7 @@ export function buildDatevBatch(
     throw new Error("No receipts to export.");
   }
 
-  const bookings = receipts.map((r) => mapReceiptToBooking(r, config));
+  const bookings = flagDuplicates(receipts.map((r) => mapReceiptToBooking(r, config)));
   const dates = receipts.map((r) => parseIsoDate(r.date) as Date);
   const fiscalYearStart = assertSingleFiscalYear(
     dates,

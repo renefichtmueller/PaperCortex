@@ -86,3 +86,33 @@ DNS-rebinding defense, fail-open when no code is set.
 **Evidence:** 59/59 vitest incl. real-HTTP server tests (foreign Host
 rejected with hint, 401 paths, ticket single-use and replay refusal,
 path-traversal ticket refusal), tsc, lint, build green.
+
+## 2026-09-24: Extraction robustness, sanity checks, index builder (DONE)
+
+**Why:** Rene: "dann verbessere bitte" on the prioritized improvement list.
+The extractor did a bare JSON.parse on LLM output (breaks on markdown
+fences), amounts were never cross-checked, twice-scanned receipts booked
+twice, and NOTHING ever populated the vector store (GitHub issue #2 --
+semantic search returned nothing forever).
+
+**What shipped:**
+- `src/receipt/extraction-parse.ts`: fence-stripping, string-aware
+  balanced-brace JSON extraction, zod-validated result with documented
+  per-field defaults (unparseable date stays as-is so the exporter SKIPS
+  with the real reason instead of booking "today"); extractor retries once
+  with a sterner instruction, then fails with a clear error.
+- Exporter sanity checks: net+tax vs gross and tax-amount vs tax-rate
+  arithmetic warnings; duplicate detection (vendor+date+amount) flagged in
+  the preview so the user unticks the second scan BEFORE export.
+- `src/webui/indexer.ts` + "Suchindex aufbauen" button in the system check:
+  paginated full index build as a background job with progress, skip
+  already-indexed, per-document errors -- closes issue #2.
+- `.github/workflows/docker-publish.yml`: multi-arch ghcr.io image on push
+  to main and v* tags (activates with the pending push).
+
+**Evidence:** 77/77 vitest (18 new: extraction-parse 6, extractor retry 4,
+indexer 3, exporter sanity/duplicates 4, adjusted fakes), tsc, lint, build
+green.
+
+**Open:** UnRaid Community-Apps template once the first ghcr image exists;
+vision-model extraction and payment-method money accounts remain backlog.

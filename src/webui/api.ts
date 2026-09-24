@@ -22,9 +22,14 @@ import {
   type StoredConfig,
 } from "../datev/config.js";
 import { formatRunReport, runDatevExport } from "../datev/export-run.js";
-import { mapReceiptToBooking, type BookingPreview } from "../datev/exporter.js";
+import {
+  flagDuplicates,
+  mapReceiptToBooking,
+  type BookingPreview,
+} from "../datev/exporter.js";
 import type { ReceiptCache } from "../datev/receipt-cache.js";
 import type { DatevService } from "../datev/service.js";
+import type { VectorStore } from "../embeddings/store.js";
 import type { PaperlessClient } from "../paperless/client.js";
 
 // ---------------------------------------------------------------------------
@@ -35,7 +40,9 @@ export interface WebUiDeps {
   readonly paperless: PaperlessClient;
   readonly service: DatevService;
   readonly cache: ReceiptCache;
-  readonly vectorStore: { count(): number };
+  readonly vectorStore: Pick<VectorStore, "count" | "has" | "upsert">;
+  /** Embedding function for the search-index builder. */
+  readonly embed: (text: string) => Promise<{ vector: readonly number[] }>;
   readonly ollamaBaseUrl: string;
   readonly ollamaModel: string;
   readonly ollamaEmbeddingModel: string;
@@ -216,7 +223,8 @@ export async function runDoctor(deps: WebUiDeps): Promise<{ checks: DoctorCheck[
       ? { id: "vectors", label: "Suchindex", status: "ok", detail: `${vectors} Dokumente indexiert` }
       : {
           id: "vectors", label: "Suchindex", status: "warn",
-          detail: "Noch leer — die semantische Suche indexiert Dokumente beim ersten Zugriff",
+          detail:
+            "Noch leer — unten auf „Suchindex aufbauen“ klicken, sonst findet die semantische Suche nichts",
         },
   );
   const stored = loadStoredConfig(cfgPath(deps));
@@ -307,7 +315,14 @@ export async function previewBookings(
       });
     }
   }
-  return { bookings, skipped, uncachedIds, total: documents.length };
+  // Duplicate flags belong in the preview so the user can untick the
+  // second scan BEFORE the file is built.
+  return {
+    bookings: flagDuplicates(bookings),
+    skipped,
+    uncachedIds,
+    total: documents.length,
+  };
 }
 
 export async function buildExport(

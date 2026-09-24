@@ -87,6 +87,51 @@ describe("mapReceiptToBooking", () => {
   });
 });
 
+describe("arithmetic sanity checks", () => {
+  it("stays quiet when the printed amounts add up", () => {
+    const booking = mapReceiptToBooking(
+      receipt({ subtotal: 100, taxAmount: 19, totalAmount: 119 }),
+      CONFIG,
+    );
+    expect(booking.warnings).toEqual([]);
+  });
+
+  it("warns when net plus tax misses the gross amount", () => {
+    const booking = mapReceiptToBooking(
+      receipt({ subtotal: 90, taxAmount: 19, totalAmount: 119 }),
+      CONFIG,
+    );
+    expect(booking.warnings.join(" ")).toContain("ergibt nicht Brutto");
+  });
+
+  it("warns when the tax amount does not match the tax rate", () => {
+    const booking = mapReceiptToBooking(
+      receipt({ subtotal: null, taxAmount: 5, totalAmount: 119, taxRate: 19 }),
+      CONFIG,
+    );
+    expect(booking.warnings.join(" ")).toContain("passt nicht zu 19%");
+  });
+});
+
+describe("duplicate detection", () => {
+  it("flags same vendor, date, and amount on every affected booking", () => {
+    const batch = buildDatevBatch(
+      [
+        receipt({ documentId: 1 }),
+        receipt({ documentId: 2 }),
+        receipt({ documentId: 3, totalAmount: 50 }),
+      ],
+      CONFIG,
+    );
+    const flagged = batch.bookings.filter((b) =>
+      b.warnings.some((w) => w.includes("Doppel-Scan")),
+    );
+    expect(flagged.map((b) => b.documentId)).toEqual([1, 2]);
+    expect(flagged[0].warnings.join(" ")).toContain("#2");
+    expect(batch.bookings[2].warnings).toEqual([]);
+  });
+});
+
 describe("fiscal year handling", () => {
   it("computes the fiscal year start around the boundary", () => {
     expect(fiscalYearStartFor(new Date("2026-09-15T00:00:00Z"), 1)).toBe("20260101");

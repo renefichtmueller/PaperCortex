@@ -100,6 +100,12 @@ zweite Lauf ist darum sofort fertig.
   genannt — niemals geraten.
 - **Warnung statt Bauchgefühl.** Fehlender Steuersatz, unbekannte Kategorie
   oder unsichere Erkennung erzeugen eine sichtbare Warnung an der Buchung.
+- **Rechenprobe auf jedem Beleg.** Ergibt Netto plus USt nicht den
+  Bruttobetrag, oder passt der USt-Betrag nicht zum Steuersatz, warnt die
+  Vorschau — so fallen falsch gelesene Ziffern auf, bevor sie gebucht sind.
+- **Dubletten-Erkennung.** Gleicher Händler, gleiches Datum, gleicher Betrag
+  doppelt im Zeitraum wird an beiden Buchungen markiert — ein zweimal
+  gescannter Beleg bucht sonst doppelt.
 - **Kontovorschläge sind Vorschläge.** Die Zuordnung Kategorie → Konto
   (SKR03/SKR04, siehe unten) ist ein sinnvoller Standard. Dein Steuerberater
   kann jedes Konto überschreiben (`accountOverrides` in `data/config.json`).

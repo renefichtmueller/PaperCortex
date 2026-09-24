@@ -62,6 +62,8 @@ function toExportShape(receipt: CachedReceipt): ReceiptForExport {
     category: receipt.category,
     currency: receipt.currency,
     confidence: receipt.confidence,
+    subtotal: receipt.subtotal,
+    taxAmount: receipt.taxAmount,
   };
 }
 

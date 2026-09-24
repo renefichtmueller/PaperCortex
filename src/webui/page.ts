@@ -97,6 +97,9 @@ export const PAGE_HTML = `<!doctype html>
     <p class="hint">Prüft Paperless-ngx, Ollama, die Modelle und die DATEV-Konfiguration. Verbindungsdaten (URLs, Zugangsdaten) werden in der <code>.env</code>-Datei gepflegt.</p>
     <ul class="checks" id="doctor-list"><li><span class="check-detail">Prüfe …</span></li></ul>
     <button class="ghost" id="doctor-rerun">Erneut prüfen</button>
+    <button class="ghost" id="btn-index" style="margin-left:.5rem">Suchindex aufbauen</button>
+    <div class="progress" id="index-progress" hidden><div></div></div>
+    <div id="index-status" class="hint"></div>
   </div>
 </section>
 
@@ -249,6 +252,37 @@ async function loadDoctor() {
   }
 }
 $("doctor-rerun").addEventListener("click", loadDoctor);
+
+// --- Suchindex aufbauen (Hintergrundjob mit Fortschritt) ---
+async function pollIndexJob() {
+  const status = await api("/api/index-job");
+  const bar = $("index-progress");
+  bar.hidden = false;
+  bar.firstElementChild.style.width = status.total ? Math.round((status.done / status.total) * 100) + "%" : "0";
+  $("index-status").textContent = status.done + " / " + status.total + " Dokumente" +
+    " (" + status.indexed + " neu, " + status.skipped + " übersprungen" +
+    (status.errors.length ? ", " + status.errors.length + " Fehler" : "") + ")";
+  if (status.state === "running") return setTimeout(pollIndexJob, 2000);
+  bar.hidden = true;
+  $("btn-index").disabled = false;
+  if (status.state === "failed") {
+    $("index-status").textContent = "Indexierung fehlgeschlagen: " + (status.message || "");
+    return;
+  }
+  loadDoctor();
+}
+
+$("btn-index").addEventListener("click", async () => {
+  $("btn-index").disabled = true;
+  $("index-status").textContent = "Starte …";
+  try {
+    await api("/api/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    pollIndexJob();
+  } catch (e) {
+    $("btn-index").disabled = false;
+    $("index-status").textContent = e.message;
+  }
+});
 
 // --- Einstellungen ---
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];

@@ -15,6 +15,7 @@
 
 import type { OllamaClient } from "../embeddings/ollama.js";
 import type { PaperlessClient } from "../paperless/client.js";
+import { parseExtractionResponse } from "./extraction-parse.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -109,48 +110,28 @@ export function createReceiptExtractor(
       );
     }
 
-    // Send to Ollama for structured extraction
+    // Send to Ollama for structured extraction. Local models regularly wrap
+    // the JSON in markdown fences or prose, so parse tolerantly and give
+    // the model exactly one sterner retry before giving up with a clear
+    // error (the export layer reports it per document, nothing crashes).
     const prompt = `Extract receipt data from the following OCR text:\n\n---\n${ocrText}\n---`;
     const completion = await ollama.complete(prompt, EXTRACTION_SYSTEM_PROMPT);
-
-    // Parse LLM response
-    // TODO: Add robust JSON extraction (handle markdown code blocks, partial JSON)
-    // TODO: Validate against Zod schema for type safety
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(completion.text);
-    } catch {
+    let validated = parseExtractionResponse(completion.text);
+    if (validated === null) {
+      const retry = await ollama.complete(
+        prompt,
+        `${EXTRACTION_SYSTEM_PROMPT}\n\nIMPORTANT: Your previous answer was not parseable. Respond with ONLY the raw JSON object -- no markdown fences, no explanation, no text before or after it.`,
+      );
+      validated = parseExtractionResponse(retry.text);
+    }
+    if (validated === null) {
       throw new Error(
-        `Failed to parse receipt extraction result for document ${documentId}. ` +
-        `LLM response was not valid JSON.`,
+        `Document ${documentId}: the model returned no parseable JSON in two attempts -- ` +
+        `check that OLLAMA_MODEL suits structured extraction.`,
       );
     }
 
-    return {
-      documentId,
-      vendor: String(parsed.vendor ?? "Unknown"),
-      vendorAddress: parsed.vendorAddress ? String(parsed.vendorAddress) : null,
-      vendorTaxId: parsed.vendorTaxId ? String(parsed.vendorTaxId) : null,
-      date: String(parsed.date ?? new Date().toISOString().split("T")[0]),
-      currency: String(parsed.currency ?? "EUR"),
-      subtotal: typeof parsed.subtotal === "number" ? parsed.subtotal : null,
-      taxRate: typeof parsed.taxRate === "number" ? parsed.taxRate : null,
-      taxAmount: typeof parsed.taxAmount === "number" ? parsed.taxAmount : null,
-      totalAmount: typeof parsed.totalAmount === "number" ? parsed.totalAmount : 0,
-      paymentMethod: parsed.paymentMethod ? String(parsed.paymentMethod) : null,
-      lineItems: Array.isArray(parsed.lineItems)
-        ? parsed.lineItems.map((item: Record<string, unknown>) => ({
-            description: String(item.description ?? ""),
-            quantity: Number(item.quantity ?? 1),
-            unitPrice: Number(item.unitPrice ?? 0),
-            totalPrice: Number(item.totalPrice ?? 0),
-            taxRate: typeof item.taxRate === "number" ? item.taxRate : null,
-          }))
-        : [],
-      category: parsed.category ? String(parsed.category) : null,
-      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
-      rawText: ocrText,
-    };
+    return { documentId, ...validated, rawText: ocrText };
   }
 
   return {
