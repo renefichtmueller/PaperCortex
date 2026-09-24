@@ -75,7 +75,10 @@ export function createPaperlessClient(config: PaperlessConfig): PaperlessClient 
   const headers: Record<string, string> = {
     Authorization: `Token ${token}`,
     "Content-Type": "application/json",
-    Accept: "application/json; version=3",
+    // No pinned API version: Paperless rejects requests asking for a
+    // version it does not serve (406 "Invalid version in Accept header"),
+    // and the core fields used here are stable across versions.
+    Accept: "application/json",
   };
 
   /**
