@@ -39,7 +39,7 @@ Standardmäßig ist die Seite nur von `localhost` aus erreichbar. Für den
 Zugriff aus dem LAN (z. B. UnRaid-Server): im Compose-File das Port-Mapping
 auf `"8140:8140"` ändern und in der `.env` einen Zugangscode
 (`WEBUI_TOKEN`) plus die erlaubten Hostnamen setzen
-(`WEBUI_ALLOWED_HOSTS=unraid.local,192.168.1.50` — das ist der Schutz gegen
+(`WEBUI_ALLOWED_HOSTS=unraid.local`, Hostname oder LAN-IP — das ist der Schutz gegen
 DNS-Rebinding). Öffentlich ins Internet gehört dieser Port nie.
 Abschalten: `WEBUI_ENABLED=false`.
 

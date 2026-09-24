@@ -420,13 +420,18 @@ async function startDownload(name) {
   window.location.href = "/api/file?" + params.toString();
 }
 
-// --- Tabs ---
+// --- Tabs (deep-linkable via #doctor / #settings / #export) ---
 document.querySelectorAll("nav button").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b === btn));
     ["doctor", "settings", "export"].forEach((tab) => { $("tab-" + tab).hidden = tab !== btn.dataset.tab; });
+    history.replaceState(null, "", "#" + btn.dataset.tab);
   });
 });
+const initialTab = (location.hash || "").slice(1);
+if (["settings", "export"].includes(initialTab)) {
+  document.querySelector('nav button[data-tab="' + initialTab + '"]').click();
+}
 
 // ---------------------------------------------------------------------------
 // System check + index job

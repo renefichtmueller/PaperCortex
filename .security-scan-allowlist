@@ -1,0 +1,8 @@
+# ERE, one rule per line, matched on finding-line content.
+# The project's own public name is not an internal codename.
+[Pp]aper[Cc]ortex
+PAPERCORTEX
+# Public clone URLs of this repository.
+github\.com/renefichtmueller/PaperCortex
+# Documentation placeholder in the API client JSDoc, not a credential.
+token: "your-api-token"

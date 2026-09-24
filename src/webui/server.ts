@@ -120,7 +120,7 @@ async function route(
   if (!isAllowedHost(req.headers.host, config.allowedHosts ?? [])) {
     return sendJson(res, 403, {
       error:
-        "Host nicht erlaubt. Für Zugriff über einen LAN-Namen/IP diesen in WEBUI_ALLOWED_HOSTS eintragen (z. B. WEBUI_ALLOWED_HOSTS=unraid.local,192.168.1.50).",
+        "Host nicht erlaubt. Für Zugriff über einen LAN-Namen/IP diesen in WEBUI_ALLOWED_HOSTS eintragen (z. B. WEBUI_ALLOWED_HOSTS=unraid.local oder die LAN-IP).",
     });
   }
   if (key === "GET /api/health") {

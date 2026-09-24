@@ -121,10 +121,15 @@ Import your bank statement as CSV and let PaperCortex automatically match transa
 
 ### Built-in Web UI
 
-A German-first settings page ships with the server (default `http://<host>:8140`):
-system check with actionable diagnostics, validated DATEV master-data form,
-and a click-through export flow (load receipts, analyze with progress,
-preview with warnings, download). See [docs/datev.md](docs/datev.md).
+A bilingual (German/English) settings page ships with the server (default
+`http://<host>:8140`): system check with actionable diagnostics, validated
+DATEV master-data form, and a click-through export flow — load receipts,
+analyze with progress, preview with warnings, reconcile against a bank CSV,
+download. See [docs/datev.md](docs/datev.md).
+
+<p align="center">
+  <img src="docs/assets/webui-settings.png" alt="PaperCortex web UI — DATEV settings" width="760" />
+</p>
 
 ### DATEV Export
 

@@ -35,7 +35,7 @@ prints the init pointer.
 
 ## 2026-09-24: Web UI settings page for DATEV (DONE)
 
-**Why:** Rene: the DATEV setup must be idiot-proof for Docker/UnRaid users --
+**Why:** Maintainer: the DATEV setup must be idiot-proof for Docker/UnRaid users --
 "eventuell langt eine Einstellungsseite". The CLI wizard covers terminal
 users; the target audience lives in browser UIs.
 
@@ -54,7 +54,7 @@ users; the target audience lives in browser UIs.
 - Robustness found by smoke test: better-sqlite3 dies on a fresh checkout
   because ./data does not exist -- vector store and receipt cache now create
   their directory (very likely the mechanism behind GitHub issue #1).
-- docker-compose port 8140 (Erik compose: 127.0.0.1:8141), Dockerfile
+- docker-compose port 8140 (localhost-bound by default), Dockerfile
   EXPOSE, .env.example WEBUI_* block, docs/datev.md + README sections.
 
 **Evidence:** 51/51 vitest (16 new webui tests incl. path-traversal guard on
@@ -64,8 +64,7 @@ persists config.json, banner confirms).
 
 **Coordination:** built on top of the consolidated src/datev core from the
 parallel session (see entry above); no core files changed except the mkdir
-robustness fix. Push to GitHub and the Erik deploy remain gated on Rene's
-approval.
+robustness fix. Push and production deploy pending maintainer review.
 
 ## 2026-09-24: Web UI security hardening (DONE)
 
@@ -89,7 +88,7 @@ path-traversal ticket refusal), tsc, lint, build green.
 
 ## 2026-09-24: Extraction robustness, sanity checks, index builder (DONE)
 
-**Why:** Rene: "dann verbessere bitte" on the prioritized improvement list.
+**Why:** Maintainer request: work through the prioritized improvement list.
 The extractor did a bare JSON.parse on LLM output (breaks on markdown
 fences), amounts were never cross-checked, twice-scanned receipts booked
 twice, and NOTHING ever populated the vector store (GitHub issue #2 --
@@ -119,8 +118,8 @@ vision-model extraction and payment-method money accounts remain backlog.
 
 ## 2026-09-24: Backlog round -- vision, payment accounts, matching, lock, i18n (DONE)
 
-**Why:** Rene: "dann verbessere bitte" on the parked backlog, plus
-"mehrsprachige Unterstuetzung in de und en".
+**Why:** Maintainer request: clear the parked backlog, plus bilingual
+support (de/en).
 
 **What shipped:**
 - Vision extraction: optional OLLAMA_VISION_MODEL; when OCR is thin
