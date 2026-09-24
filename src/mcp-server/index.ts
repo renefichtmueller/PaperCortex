@@ -26,6 +26,7 @@ import { handleExport } from "./tools/export.js";
 import { handleQuery } from "./tools/query.js";
 import { handleReceipt } from "./tools/receipt.js";
 import { handleSearch } from "./tools/search.js";
+import { maybeStartWebUi } from "../webui/start.js";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -309,6 +310,9 @@ async function startHttp(): Promise<void> {
 
 async function main(): Promise<void> {
   const transport = (process.env["TRANSPORT"] ?? "stdio").toLowerCase();
+
+  // Settings/export page on its own port; failure never blocks MCP.
+  maybeStartWebUi({ paperless, ollama, vectorStore });
 
   if (transport === "http") {
     await startHttp();

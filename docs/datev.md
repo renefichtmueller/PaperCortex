@@ -19,6 +19,29 @@ Drei Angaben, alle bekommst du von deinem Steuerberater (eine kurze E-Mail genü
 Optional: der Monat, in dem dein Wirtschaftsjahr beginnt (fast immer Januar),
 und das Geldkonto für die Gegenbuchung (Vorgabe: 1200 bei SKR03, 1800 bei SKR04).
 
+## Der einfachste Weg: die Einstellungsseite im Browser
+
+Seit dieser Version bringt PaperCortex eine eingebaute Weboberfläche mit
+(Standard: `http://<server>:8140`, bei Docker-Compose bereits freigegeben):
+
+1. **Systemcheck** — zeigt mit Ampelfarben, ob Paperless-ngx, Ollama, die
+   Modelle und die DATEV-Konfiguration stehen, inklusive konkretem
+   Behebungshinweis bei Rot.
+2. **DATEV-Einstellungen** — Beraternummer, Mandantennummer, Kontenrahmen
+   (SKR03/SKR04), Wirtschaftsjahr, Geldkonto und optionale Kontenzuordnung.
+   Jede Eingabe wird sofort validiert; gespeichert wird in
+   `data/config.json` (dieselbe Datei, die auch `npm run datev:init` schreibt).
+3. **Belege exportieren** — Monat wählen, Belege laden, per Knopf analysieren
+   (mit Fortschrittsbalken), Vorschau mit Warnungen prüfen, einzelne Belege
+   abwählen, DATEV-Datei herunterladen.
+
+Die Oberfläche ist für das eigene LAN gedacht. Optional schützt
+`WEBUI_TOKEN` in der `.env` den Zugriff mit einem Zugangscode; öffentlich
+ins Internet gehört dieser Port nicht. Abschalten: `WEBUI_ENABLED=false`.
+
+Wer lieber im Terminal arbeitet: die drei CLI-Schritte unten führen zum
+identischen Ergebnis.
+
 ## Die drei Schritte
 
 ### 1. Einmalig einrichten

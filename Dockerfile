@@ -29,6 +29,6 @@ USER papercortex
 ENV NODE_ENV=production
 ENV VECTOR_DB_PATH=/app/data/vectors.db
 
-EXPOSE 3100
+EXPOSE 3100 8140
 
 CMD ["node", "dist/mcp-server/index.js"]

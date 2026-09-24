@@ -32,3 +32,37 @@ prints the init pointer.
 
 **Open:** none for this feature. GitHub issues #1 (compose restart loop) and
 #2 (initial vector store population) remain separate onboarding tasks.
+
+## 2026-09-24: Web UI settings page for DATEV (DONE)
+
+**Why:** Rene: the DATEV setup must be idiot-proof for Docker/UnRaid users --
+"eventuell langt eine Einstellungsseite". The CLI wizard covers terminal
+users; the target audience lives in browser UIs.
+
+**What shipped:**
+- `src/webui/`: `api.ts` (settings round-trip, system check, preview,
+  export -- dependency-injected and unit-tested), `jobs.ts` (background
+  extraction with progress polling), `server.ts` (routing, optional
+  WEBUI_TOKEN auth, CSP, strict export-filename validation), `page.ts`
+  (self-contained German single-page UI: Systemcheck / DATEV-Einstellungen /
+  Belege exportieren), `start.ts` + `main.ts` (embedded in the MCP server
+  process by default, standalone via `npm run webui`).
+- System check with actionable diagnostics ("ollama pull <model>",
+  "PAPERLESS_URL prüfen"); settings validated field-by-field with German
+  error messages; export flow: load -> analyze (progress bar) -> preview
+  with warnings and per-receipt opt-out -> CP1252 EXTF download.
+- Robustness found by smoke test: better-sqlite3 dies on a fresh checkout
+  because ./data does not exist -- vector store and receipt cache now create
+  their directory (very likely the mechanism behind GitHub issue #1).
+- docker-compose port 8140 (Erik compose: 127.0.0.1:8141), Dockerfile
+  EXPOSE, .env.example WEBUI_* block, docs/datev.md + README sections.
+
+**Evidence:** 51/51 vitest (16 new webui tests incl. path-traversal guard on
+downloads), tsc, lint, build green; UI verified in the browser end-to-end
+(doctor renders, invalid Beraternummer rejected with field error, valid save
+persists config.json, banner confirms).
+
+**Coordination:** built on top of the consolidated src/datev core from the
+parallel session (see entry above); no core files changed except the mkdir
+robustness fix. Push to GitHub and the Erik deploy remain gated on Rene's
+approval.

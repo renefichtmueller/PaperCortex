@@ -13,6 +13,9 @@
  * ```
  */
 
+import { mkdirSync } from "fs";
+import { dirname } from "path";
+
 import Database from "better-sqlite3";
 
 // ---------------------------------------------------------------------------
@@ -108,6 +111,9 @@ function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
  * The current brute-force approach works well for <100k documents.
  */
 export function createVectorStore(config: VectorStoreConfig): VectorStore {
+  // A fresh checkout has no ./data yet; better-sqlite3 refuses to create
+  // missing directories and the whole service dies on first start.
+  mkdirSync(dirname(config.dbPath), { recursive: true });
   const db = new Database(config.dbPath);
 
   // Enable WAL mode for better concurrent read performance

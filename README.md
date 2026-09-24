@@ -119,6 +119,13 @@ Import your bank statement as CSV and let PaperCortex automatically match transa
 - **Unmatched detection** — highlights receipts without matching transactions and vice versa
 - **Multi-currency support** — handles EUR, USD, GBP, CHF, and 20+ currencies
 
+### Built-in Web UI
+
+A German-first settings page ships with the server (default `http://<host>:8140`):
+system check with actionable diagnostics, validated DATEV master-data form,
+and a click-through export flow (load receipts, analyze with progress,
+preview with warnings, download). See [docs/datev.md](docs/datev.md).
+
 ### DATEV Export
 
 For German businesses and freelancers, PaperCortex generates **real DATEV-Format files** (EXTF header, Buchungsstapel format version 13, CP1252) that import into DATEV Rechnungswesen / Unternehmen Online without manual fixing. Three commands, zero guesswork:

@@ -5,12 +5,14 @@ services:
     restart: unless-stopped
     ports:
       - "3100:3100"
+      - "8140:8140"
     volumes:
       - papercortex-data:/app/data
     env_file:
       - .env
     environment:
       - NODE_ENV=production
+      - PAPERCORTEX_EXPORT_DIR=/app/data/exports
     depends_on:
       - ollama
 

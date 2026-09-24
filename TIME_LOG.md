@@ -3,3 +3,4 @@
 | Date | Agent | Duration | Description | Issue |
 |---|---|---|---|---|
 | 2026-09-24 | Claude | 75m | Rebuilt the DATEV export end to end: real EXTF/Buchungsstapel v13 format with CP1252 output, validated configuration with setup wizard, dry-run check command, skip-and-report semantics, fiscal-year splitting, SQLite extraction cache, MCP tool on the new core, docs, and a working lint setup. | DATEV usability report |
+| 2026-09-24 | Claude | 75m | Built the German web UI on top of the consolidated DATEV core (settings page with field-level validation, system check with actionable diagnostics, analyze job with progress, preview with warnings and opt-out, CP1252 download with strict filename guard), fixed the fresh-install SQLite directory crash, verified the full flow in the browser, and coordinated the two-session collision via cross-session handoff. | DATEV idiot-proof |

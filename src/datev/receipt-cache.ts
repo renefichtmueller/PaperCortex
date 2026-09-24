@@ -7,6 +7,9 @@
  * the database small.
  */
 
+import { mkdirSync } from "fs";
+import { dirname } from "path";
+
 import Database from "better-sqlite3";
 
 import type { ReceiptData } from "../receipt/extractor.js";
@@ -21,6 +24,7 @@ export interface ReceiptCache {
 }
 
 export function createReceiptCache(dbPath: string): ReceiptCache {
+  mkdirSync(dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.exec(`

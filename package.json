@@ -15,7 +15,8 @@
     "receipt:match": "tsx src/receipt/matcher.ts",
     "datev:init": "tsx src/cli/datev.ts init",
     "datev:check": "tsx src/cli/datev.ts check",
-    "datev:export": "tsx src/cli/datev.ts export"
+    "datev:export": "tsx src/cli/datev.ts export",
+    "webui": "tsx src/webui/main.ts"
   },
   "keywords": [
     "paperless-ngx",
