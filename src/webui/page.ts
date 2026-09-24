@@ -216,11 +216,16 @@ async function api(path, options) {
   return body;
 }
 
-function downloadHref(name) {
+// Downloads laufen über Einmal-Tickets: der Zugangscode bleibt im Header
+// und taucht nie in einer URL (History, Proxy-Logs) auf.
+async function startDownload(name) {
+  const data = await api("/api/file/ticket", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
   const params = new URLSearchParams();
-  params.set("name", name);
-  if (authToken) params.set("token", authToken);
-  return "/api/file?" + params.toString();
+  params.set("ticket", data.ticket);
+  window.location.href = "/api/file?" + params.toString();
 }
 
 // --- Tabs ---
@@ -412,9 +417,18 @@ $("btn-export").addEventListener("click", async () => {
       body: JSON.stringify({ from: $("f-from").value, to: $("f-to").value, excludeIds }),
     });
     const links = data.files.map((f) =>
-      '<a class="download" href="' + esc(downloadHref(f.name)) + '" download>⬇ ' + esc(f.name) + "</a>").join("");
+      '<a class="download" href="#" data-file="' + esc(f.name) + '">⬇ ' + esc(f.name) + "</a>").join("");
     $("export-result").innerHTML = links + '<pre class="report">' + esc(data.report) + "</pre>";
   } catch (e) { $("export-result").innerHTML = '<div class="banner err">' + esc(e.message) + "</div>"; }
+});
+
+$("export-result").addEventListener("click", (event) => {
+  const link = event.target.closest("[data-file]");
+  if (!link) return;
+  event.preventDefault();
+  startDownload(link.dataset.file).catch((e) => {
+    $("export-result").insertAdjacentHTML("beforeend", '<div class="banner err">' + esc(e.message) + "</div>");
+  });
 });
 
 // --- Start ---

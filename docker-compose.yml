@@ -5,7 +5,10 @@ services:
     restart: unless-stopped
     ports:
       - "3100:3100"
-      - "8140:8140"
+      # Web UI: localhost only by default. For LAN access (e.g. UnRaid),
+      # use "8140:8140" instead AND set WEBUI_TOKEN + WEBUI_ALLOWED_HOSTS
+      # in your .env. Never expose this port to the internet.
+      - "127.0.0.1:8140:8140"
     volumes:
       - papercortex-data:/app/data
     env_file:

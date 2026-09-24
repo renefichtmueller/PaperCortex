@@ -66,3 +66,23 @@ persists config.json, banner confirms).
 parallel session (see entry above); no core files changed except the mkdir
 robustness fix. Push to GitHub and the Erik deploy remain gated on Rene's
 approval.
+
+## 2026-09-24: Web UI security hardening (DONE)
+
+**Why:** Automated security review on the web UI commit: access code leaked
+into download URLs, port open to the LAN by default without a code, no
+DNS-rebinding defense, fail-open when no code is set.
+
+**What shipped:**
+- Download tickets (`src/webui/tickets.ts`): single-use, 60s TTL, bounded;
+  the access code lives only in the X-Auth-Token header and never in a URL.
+- Host-header allowlist (localhost by default, `WEBUI_ALLOWED_HOSTS` for
+  LAN names/IPs) as the DNS-rebinding defense; 403 carries the exact fix.
+- Constant-time access-code comparison; loud startup warning when no code
+  is configured.
+- Shipped compose now binds 127.0.0.1:8140 with a documented LAN variant;
+  docs and .env.example explain the tradeoff.
+
+**Evidence:** 59/59 vitest incl. real-HTTP server tests (foreign Host
+rejected with hint, 401 paths, ticket single-use and replay refusal,
+path-traversal ticket refusal), tsc, lint, build green.

@@ -35,9 +35,13 @@ Seit dieser Version bringt PaperCortex eine eingebaute Weboberfläche mit
    (mit Fortschrittsbalken), Vorschau mit Warnungen prüfen, einzelne Belege
    abwählen, DATEV-Datei herunterladen.
 
-Die Oberfläche ist für das eigene LAN gedacht. Optional schützt
-`WEBUI_TOKEN` in der `.env` den Zugriff mit einem Zugangscode; öffentlich
-ins Internet gehört dieser Port nicht. Abschalten: `WEBUI_ENABLED=false`.
+Standardmäßig ist die Seite nur von `localhost` aus erreichbar. Für den
+Zugriff aus dem LAN (z. B. UnRaid-Server): im Compose-File das Port-Mapping
+auf `"8140:8140"` ändern und in der `.env` einen Zugangscode
+(`WEBUI_TOKEN`) plus die erlaubten Hostnamen setzen
+(`WEBUI_ALLOWED_HOSTS=unraid.local,192.168.1.50` — das ist der Schutz gegen
+DNS-Rebinding). Öffentlich ins Internet gehört dieser Port nie.
+Abschalten: `WEBUI_ENABLED=false`.
 
 Wer lieber im Terminal arbeitet: die drei CLI-Schritte unten führen zum
 identischen Ergebnis.

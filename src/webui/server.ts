@@ -1,11 +1,18 @@
 /**
  * Web UI HTTP server: serves the settings page and the JSON API.
  *
- * Designed for the home lab / LAN. An optional shared secret (WEBUI_TOKEN)
- * gates every request; the page itself asks for it once and remembers it.
- * Do not expose this port to the public internet.
+ * Hardening, in plain terms:
+ * - Host-header allowlist: only localhost by default (WEBUI_ALLOWED_HOSTS
+ *   extends it) — this is the DNS-rebinding defense, without it any website
+ *   could script requests against a rebound "same-origin" localhost.
+ * - Optional access code (WEBUI_TOKEN) checked constant-time, header-only;
+ *   it never appears in URLs. Downloads use single-use tickets instead,
+ *   because <a download> cannot carry headers.
+ * - Without a token the UI is open to whoever reaches the port, so the
+ *   shipped compose binds it to 127.0.0.1. Do not expose it to the internet.
  */
 
+import { timingSafeEqual } from "crypto";
 import * as http from "http";
 
 import {
@@ -20,12 +27,16 @@ import {
 } from "./api.js";
 import { createAnalyzeJobs, type AnalyzeJobs } from "./jobs.js";
 import { PAGE_HTML } from "./page.js";
+import { createTicketStore, type TicketStore } from "./tickets.js";
 
 const BODY_LIMIT_BYTES = 64 * 1024;
+const DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];
 
 export interface WebUiServerConfig {
   readonly deps: WebUiDeps;
   readonly token?: string;
+  /** Extra Host values (LAN name/IP) allowed to reach the UI. */
+  readonly allowedHosts?: readonly string[];
 }
 
 function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
@@ -61,14 +72,36 @@ function sendJson(res: http.ServerResponse, status: number, payload: unknown): v
   res.end(JSON.stringify(payload));
 }
 
-function isAuthorized(req: http.IncomingMessage, url: URL, token?: string): boolean {
+function constantTimeEquals(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+/** DNS-rebinding defense: the Host header must name an allowed host. */
+export function isAllowedHost(
+  hostHeader: string | undefined,
+  extraHosts: readonly string[],
+): boolean {
+  if (!hostHeader) return false;
+  const host = hostHeader
+    .replace(/:\d+$/, "")
+    .trim()
+    .toLowerCase();
+  return [...DEFAULT_ALLOWED_HOSTS, ...extraHosts.map((h) => h.toLowerCase())].includes(host);
+}
+
+function isAuthorized(req: http.IncomingMessage, token?: string): boolean {
   if (!token) return true;
-  return req.headers["x-auth-token"] === token || url.searchParams.get("token") === token;
+  const presented = req.headers["x-auth-token"];
+  return typeof presented === "string" && constantTimeEquals(presented, token);
 }
 
 async function route(
   config: WebUiServerConfig,
   jobs: AnalyzeJobs,
+  tickets: TicketStore,
   req: http.IncomingMessage,
   res: http.ServerResponse,
 ): Promise<void> {
@@ -76,11 +109,37 @@ async function route(
   const key = `${req.method} ${url.pathname}`;
   const { deps } = config;
 
+  if (!isAllowedHost(req.headers.host, config.allowedHosts ?? [])) {
+    return sendJson(res, 403, {
+      error:
+        "Host nicht erlaubt. Für Zugriff über einen LAN-Namen/IP diesen in WEBUI_ALLOWED_HOSTS eintragen (z. B. WEBUI_ALLOWED_HOSTS=unraid.local,192.168.1.50).",
+    });
+  }
   if (key === "GET /api/health") {
     return sendJson(res, 200, { status: "ok", service: "PaperCortex Web UI" });
   }
-  if (!isAuthorized(req, url, config.token)) {
-    return sendJson(res, 401, { error: "Zugangstoken fehlt oder ist falsch" });
+
+  // Downloads authenticate via single-use ticket (issued below with auth):
+  // <a download> cannot send headers, and the access code must never
+  // appear in a URL.
+  if (key === "GET /api/file") {
+    const filename = tickets.consume(url.searchParams.get("ticket") ?? "");
+    const file = filename === null ? null : readExportFile(deps, filename);
+    if (!file) {
+      return sendJson(res, 404, {
+        error: "Download abgelaufen — bitte „DATEV-Datei erstellen“ erneut anklicken",
+      });
+    }
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=windows-1252",
+      "Content-Disposition": `attachment; filename="${file.name}"`,
+      "Cache-Control": "no-store",
+    });
+    return void res.end(file.content);
+  }
+
+  if (!isAuthorized(req, config.token)) {
+    return sendJson(res, 401, { error: "Zugangscode fehlt oder ist falsch" });
   }
 
   switch (key) {
@@ -137,15 +196,13 @@ async function route(
       };
       return sendJson(res, 200, await buildExport(deps, body.from, body.to, body.excludeIds));
     }
-    case "GET /api/file": {
-      const file = readExportFile(deps, url.searchParams.get("name"));
+    case "POST /api/file/ticket": {
+      const body = (await readJsonBody(req)) as { name?: string };
+      // readExportFile validates the name against the strict allowlist and
+      // confirms the file exists before a ticket is handed out.
+      const file = readExportFile(deps, body.name);
       if (!file) return sendJson(res, 404, { error: "Datei nicht gefunden" });
-      res.writeHead(200, {
-        "Content-Type": "text/csv; charset=windows-1252",
-        "Content-Disposition": `attachment; filename="${file.name}"`,
-        "Cache-Control": "no-store",
-      });
-      return void res.end(file.content);
+      return sendJson(res, 200, { ticket: tickets.issue(file.name) });
     }
     default:
       return sendJson(res, 404, { error: "Not found" });
@@ -154,8 +211,9 @@ async function route(
 
 export function createWebUiServer(config: WebUiServerConfig): http.Server {
   const jobs = createAnalyzeJobs(config.deps.service);
+  const tickets = createTicketStore();
   return http.createServer((req, res) => {
-    route(config, jobs, req, res).catch((error: unknown) => {
+    route(config, jobs, tickets, req, res).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       if (!res.headersSent) sendJson(res, 400, { error: message });
       else res.end();

@@ -46,12 +46,19 @@ export function maybeStartWebUi(clients: WebUiClients): boolean {
         process.env["OLLAMA_EMBEDDING_MODEL"] ?? "nomic-embed-text",
       exportDir: process.env["PAPERCORTEX_EXPORT_DIR"] ?? "./exports",
     };
-    const server = createWebUiServer({
-      deps,
-      token: process.env["WEBUI_TOKEN"] || undefined,
-    });
+    const token = process.env["WEBUI_TOKEN"] || undefined;
+    const allowedHosts = (process.env["WEBUI_ALLOWED_HOSTS"] ?? "")
+      .split(",")
+      .map((h) => h.trim())
+      .filter(Boolean);
+    const server = createWebUiServer({ deps, token, allowedHosts });
     server.listen(port, () => {
       console.error(`PaperCortex Web UI: http://localhost:${port}`);
+      if (!token) {
+        console.error(
+          "Web UI läuft OHNE Zugangscode (WEBUI_TOKEN) — nur hinter 127.0.0.1 oder im vertrauten LAN betreiben, nie öffentlich.",
+        );
+      }
     });
     return true;
   } catch (error) {
