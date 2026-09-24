@@ -15,6 +15,7 @@ const PAGE_SIZE = 100;
 const MAX_PAGES = 500;
 /** Embedding models have a bounded context; more text adds no recall. */
 const EMBED_MAX_CHARS = 6000;
+const EMBED_MIN_CHARS = 500;
 
 export interface IndexRunResult {
   readonly indexed: number;
@@ -53,6 +54,31 @@ async function listAllDocuments(
   return documents;
 }
 
+/**
+ * Embed with a shrinking window: token limits vary per embedding model and
+ * server config, and character counts are a poor proxy for tokens (German
+ * OCR runs ~3 chars/token). On "context length" errors the text is halved
+ * until it fits -- embedding the head of a long document is far better
+ * than not indexing it at all.
+ */
+async function embedFitting(
+  deps: IndexerDeps,
+  text: string,
+): Promise<{ vector: readonly number[] }> {
+  let candidate = text;
+  for (;;) {
+    try {
+      return await deps.embed(candidate);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/context length/i.test(message) || candidate.length <= EMBED_MIN_CHARS) {
+        throw error;
+      }
+      candidate = candidate.slice(0, Math.floor(candidate.length / 2));
+    }
+  }
+}
+
 /** Embed one document into the store; tagNames resolves tag ids to names. */
 async function indexDocument(
   deps: IndexerDeps,
@@ -64,7 +90,7 @@ async function indexDocument(
     throw new Error("kein OCR-Text vorhanden");
   }
   const text = `${document.title}\n\n${content}`.slice(0, EMBED_MAX_CHARS);
-  const { vector } = await deps.embed(text);
+  const { vector } = await embedFitting(deps, text);
   deps.vectorStore.upsert({
     documentId: document.id,
     vector,

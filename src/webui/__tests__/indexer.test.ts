@@ -47,6 +47,41 @@ async function waitForDone(job: ReturnType<typeof createIndexJob>): Promise<void
   }
 }
 
+describe("embedding window", () => {
+  it("halves the text on context-length errors until it fits", async () => {
+    const calls: number[] = [];
+    const docs = [doc(1, "x".repeat(6000))];
+    const { deps } = fakeDeps(docs);
+    const failing = {
+      ...deps,
+      embed: vi.fn(async (text: string) => {
+        calls.push(text.length);
+        if (text.length > 2000) throw new Error('Ollama API error: 500 -- {"error":"the input length exceeds the context length"}');
+        return { vector: [0.1] };
+      }),
+    };
+    const job = createIndexJob(failing);
+    job.start(false);
+    await waitForDone(job);
+    expect(job.status().indexed).toBe(1);
+    expect(job.status().errors).toEqual([]);
+    expect(calls.length).toBeGreaterThan(1);
+    expect(calls[calls.length - 1]).toBeLessThanOrEqual(2000);
+  });
+
+  it("surfaces non-context errors unchanged", async () => {
+    const { deps } = fakeDeps([doc(1)]);
+    const failing = {
+      ...deps,
+      embed: vi.fn(async () => { throw new Error("connection refused"); }),
+    };
+    const job = createIndexJob(failing);
+    job.start(false);
+    await waitForDone(job);
+    expect(job.status().errors[0].error).toContain("connection refused");
+  });
+});
+
 describe("search index job", () => {
   it("indexes all pages, resolves tag names, reports progress", async () => {
     const { deps, upserts } = fakeDeps([doc(1), doc(2), doc(3)]);
