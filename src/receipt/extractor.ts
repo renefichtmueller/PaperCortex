@@ -87,47 +87,84 @@ Respond ONLY with valid JSON. No explanation, no markdown.`;
 // Implementation
 // ---------------------------------------------------------------------------
 
-/**
- * Create a receipt data extractor.
- *
- * TODO: Add support for image-based receipts (pass images to multimodal LLM)
- * TODO: Add receipt template matching for common vendors
- * TODO: Add currency conversion support
- */
+/** OCR shorter than this is likely a failed scan -- prefer the image. */
+const MIN_OCR_CHARS = 150;
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|webp|gif|bmp|tiff?)$/i;
+const STRICT_RETRY_SUFFIX =
+  "\n\nIMPORTANT: Your previous answer was not parseable. Respond with ONLY the raw JSON object -- no markdown fences, no explanation, no text before or after it.";
+
+function visionAvailable(ollama: OllamaClient): boolean {
+  return typeof ollama.supportsVision === "function" && ollama.supportsVision();
+}
+
 export function createReceiptExtractor(
   config: ReceiptExtractorConfig,
 ): ReceiptExtractor {
   const { ollama, paperless } = config;
 
-  async function extractSingle(documentId: number): Promise<ReceiptData> {
-    // Fetch the document content from Paperless-ngx
-    const document = await paperless.getDocument(documentId);
-    const ocrText = document.content;
+  // Local models regularly wrap the JSON in markdown fences or prose, so
+  // parse tolerantly and give the model exactly one sterner retry.
+  async function attemptText(prompt: string): Promise<ReturnType<typeof parseExtractionResponse>> {
+    const first = await ollama.complete(prompt, EXTRACTION_SYSTEM_PROMPT);
+    const parsed = parseExtractionResponse(first.text);
+    if (parsed !== null) return parsed;
+    const retry = await ollama.complete(prompt, EXTRACTION_SYSTEM_PROMPT + STRICT_RETRY_SUFFIX);
+    return parseExtractionResponse(retry.text);
+  }
 
-    if (!ocrText || ocrText.trim().length === 0) {
+  // Vision path for photo receipts whose OCR came out thin or useless:
+  // original file when it IS an image, otherwise the rendered first-page
+  // thumbnail (phone scans usually arrive as single-page PDFs).
+  async function attemptVision(
+    document: { readonly id: number; readonly original_file_name?: string },
+  ): Promise<ReturnType<typeof parseExtractionResponse>> {
+    try {
+      const isImage = IMAGE_EXTENSIONS.test(document.original_file_name ?? "");
+      const bytes = isImage
+        ? await paperless.downloadDocument(document.id)
+        : await paperless.downloadThumbnail(document.id);
+      const image = Buffer.from(bytes).toString("base64");
+      const prompt = "Read this receipt image carefully and extract the data.";
+      const first = await ollama.completeVision(prompt, EXTRACTION_SYSTEM_PROMPT, [image]);
+      const parsed = parseExtractionResponse(first.text);
+      if (parsed !== null) return parsed;
+      const retry = await ollama.completeVision(
+        prompt,
+        EXTRACTION_SYSTEM_PROMPT + STRICT_RETRY_SUFFIX,
+        [image],
+      );
+      return parseExtractionResponse(retry.text);
+    } catch {
+      return null;
+    }
+  }
+
+  async function extractSingle(documentId: number): Promise<ReceiptData> {
+    const document = await paperless.getDocument(documentId);
+    const ocrText = (document.content ?? "").trim();
+    const vision = visionAvailable(ollama);
+
+    if (ocrText.length === 0 && !vision) {
       throw new Error(
         `Document ${documentId} has no OCR content. Ensure Paperless-ngx has processed the document.`,
       );
     }
 
-    // Send to Ollama for structured extraction. Local models regularly wrap
-    // the JSON in markdown fences or prose, so parse tolerantly and give
-    // the model exactly one sterner retry before giving up with a clear
-    // error (the export layer reports it per document, nothing crashes).
     const prompt = `Extract receipt data from the following OCR text:\n\n---\n${ocrText}\n---`;
-    const completion = await ollama.complete(prompt, EXTRACTION_SYSTEM_PROMPT);
-    let validated = parseExtractionResponse(completion.text);
-    if (validated === null) {
-      const retry = await ollama.complete(
-        prompt,
-        `${EXTRACTION_SYSTEM_PROMPT}\n\nIMPORTANT: Your previous answer was not parseable. Respond with ONLY the raw JSON object -- no markdown fences, no explanation, no text before or after it.`,
-      );
-      validated = parseExtractionResponse(retry.text);
+    let validated: ReturnType<typeof parseExtractionResponse> = null;
+    if (ocrText.length >= MIN_OCR_CHARS || !vision) {
+      validated = await attemptText(prompt);
+      if (validated === null && vision) validated = await attemptVision(document);
+    } else {
+      validated = await attemptVision(document);
+      if (validated === null && ocrText.length > 0) validated = await attemptText(prompt);
     }
+
     if (validated === null) {
       throw new Error(
-        `Document ${documentId}: the model returned no parseable JSON in two attempts -- ` +
-        `check that OLLAMA_MODEL suits structured extraction.`,
+        `Document ${documentId}: the model returned no parseable JSON in two attempts` +
+        `${vision ? " (text and vision)" : ""} -- check that OLLAMA_MODEL` +
+        `${vision ? "/OLLAMA_VISION_MODEL" : ""} suits structured extraction.`,
       );
     }
 

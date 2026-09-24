@@ -49,6 +49,9 @@ export interface PaperlessClient {
   /** Download the original file content of a document. */
   downloadDocument(id: number): Promise<ArrayBuffer>;
 
+  /** Download the rendered first-page thumbnail (PNG/WebP). */
+  downloadThumbnail(id: number): Promise<ArrayBuffer>;
+
   /** Update tags on a document (immutable -- returns the updated doc). */
   updateDocumentTags(
     id: number,
@@ -126,6 +129,25 @@ export function createPaperlessClient(config: PaperlessConfig): PaperlessClient 
     return `?${searchParams.toString()}`;
   }
 
+  async function downloadBinary(url: string): Promise<ArrayBuffer> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const response = await fetch(url, {
+        headers: { Authorization: `Token ${token}` },
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Paperless download error: ${response.status} ${response.statusText}`,
+        );
+      }
+      return await response.arrayBuffer();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   return {
     async getDocument(id) {
       return request<PaperlessDocument>(`/documents/${id}/`);
@@ -150,26 +172,11 @@ export function createPaperlessClient(config: PaperlessConfig): PaperlessClient 
     },
 
     async downloadDocument(id) {
-      const url = `${baseUrl.replace(/\/+$/, "")}/api/documents/${id}/download/`;
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+      return downloadBinary(`${baseUrl.replace(/\/+$/, "")}/api/documents/${id}/download/`);
+    },
 
-      try {
-        const response = await fetch(url, {
-          headers: { Authorization: `Token ${token}` },
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            `Paperless download error: ${response.status} ${response.statusText}`,
-          );
-        }
-
-        return await response.arrayBuffer();
-      } finally {
-        clearTimeout(timer);
-      }
+    async downloadThumbnail(id) {
+      return downloadBinary(`${baseUrl.replace(/\/+$/, "")}/api/documents/${id}/thumb/`);
     },
 
     async updateDocumentTags(id, tagIds) {

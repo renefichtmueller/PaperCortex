@@ -79,6 +79,14 @@ describe("resolveDatevConfig", () => {
     expect(resolved?.consultantNumber).toBe(29098);
   });
 
+  it("fills payment-account defaults and parses boolean env overrides", () => {
+    const stored = storedConfigSchema.parse({ datev: VALID });
+    const resolved = resolveDatevConfig(stored, { DATEV_LOCK_BOOKINGS: "true" });
+    expect(resolved?.cashAccount).toBe("1000");
+    expect(resolved?.cardAccount).toBe("1200");
+    expect(resolved?.lockBookings).toBe(true);
+  });
+
   it("rejects invalid environment values loudly", () => {
     const stored = storedConfigSchema.parse({ datev: VALID });
     expect(() => resolveDatevConfig(stored, { DATEV_SKR: "SKR99" })).toThrow();

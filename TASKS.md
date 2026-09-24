@@ -116,3 +116,31 @@ green.
 
 **Open:** UnRaid Community-Apps template once the first ghcr image exists;
 vision-model extraction and payment-method money accounts remain backlog.
+
+## 2026-09-24: Backlog round -- vision, payment accounts, matching, lock, i18n (DONE)
+
+**Why:** Rene: "dann verbessere bitte" on the parked backlog, plus
+"mehrsprachige Unterstuetzung in de und en".
+
+**What shipped:**
+- Vision extraction: optional OLLAMA_VISION_MODEL; when OCR is thin
+  (<150 chars) or the text path fails, the model reads the receipt image
+  (original file for images, rendered thumbnail for PDFs). Doctor checks
+  the model when configured. No model set = unchanged behavior.
+- Money account per payment kind: cash books against the Kasse
+  (1000/1600 default), card optionally against its own account; free-text
+  methods normalized (bar/EC/girocard/...). Preview shows Zahlart ->
+  Gegenkonto per booking.
+- Festschreibung toggle (GoBD): header field 21 and row field 114.
+- Bank reconciliation wired up (was dead code): parseBankCsvText for
+  uploads, German date normalization DD.MM.YYYY (previously Invalid Date
+  made the date signal silently useless), vendor matching on the first
+  meaningful word instead of a fixed 8-char prefix ("REWE SAGT DANKE"),
+  POST /api/match with 1MB CSV limit, step 4 in the export tab: matched /
+  receipts-without-transaction / open transactions. Read-only.
+- Bilingual UI (de/en): dictionary-based, toggle persists, doctor labels
+  localized. Booking warnings and the DATEV report stay German by design
+  (they address the German tax advisor and travel into the export files).
+
+**Evidence:** 87/87 vitest (10 new), tsc, lint, build green; UI smoke in
+the browser in both languages incl. the live vision-model doctor check.

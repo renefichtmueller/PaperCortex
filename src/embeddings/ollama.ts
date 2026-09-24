@@ -20,6 +20,8 @@ export interface OllamaConfig {
   readonly baseUrl: string;
   readonly model: string;
   readonly embeddingModel: string;
+  /** Optional multimodal model for photo receipts (e.g. "minicpm-v"). */
+  readonly visionModel?: string;
   readonly timeout?: number;
 }
 
@@ -42,6 +44,16 @@ export interface OllamaClient {
   /** Generate a chat/instruct completion. */
   complete(prompt: string, systemPrompt?: string): Promise<CompletionResult>;
 
+  /** Whether a vision model is configured for image-based extraction. */
+  supportsVision(): boolean;
+
+  /** Completion with attached images (base64-encoded, no data: prefix). */
+  completeVision(
+    prompt: string,
+    systemPrompt: string | undefined,
+    imagesBase64: readonly string[],
+  ): Promise<CompletionResult>;
+
   /** Check if the Ollama server is reachable and models are available. */
   healthCheck(): Promise<{ ok: boolean; models: readonly string[] }>;
 }
@@ -54,7 +66,7 @@ export interface OllamaClient {
  * Create an Ollama client for embeddings and completions.
  */
 export function createOllamaClient(config: OllamaConfig): OllamaClient {
-  const { baseUrl, model, embeddingModel, timeout = 120_000 } = config;
+  const { baseUrl, model, embeddingModel, visionModel, timeout = 120_000 } = config;
 
   async function post<T>(path: string, body: unknown): Promise<T> {
     const url = `${baseUrl.replace(/\/+$/, "")}${path}`;
@@ -118,6 +130,33 @@ export function createOllamaClient(config: OllamaConfig): OllamaClient {
         stream: false,
       });
 
+      return {
+        text: result.response,
+        model: result.model,
+        totalDuration: result.total_duration,
+      };
+    },
+
+    supportsVision() {
+      return Boolean(visionModel);
+    },
+
+    async completeVision(prompt, systemPrompt, imagesBase64) {
+      if (!visionModel) {
+        throw new Error("No vision model configured (OLLAMA_VISION_MODEL)");
+      }
+      interface OllamaGenerateResponse {
+        response: string;
+        model: string;
+        total_duration: number;
+      }
+      const result = await post<OllamaGenerateResponse>("/api/generate", {
+        model: visionModel,
+        prompt,
+        system: systemPrompt ?? "",
+        images: [...imagesBase64],
+        stream: false,
+      });
       return {
         text: result.response,
         model: result.model,

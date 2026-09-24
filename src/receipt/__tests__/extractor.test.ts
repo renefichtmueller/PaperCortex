@@ -50,3 +50,53 @@ describe("createReceiptExtractor", () => {
     await expect(extractor.extract(42)).rejects.toThrow("no OCR content");
   });
 });
+
+describe("vision fallback", () => {
+  function visionOllama(textAnswers: readonly string[], visionAnswer: string) {
+    const base = fakeOllama(textAnswers);
+    const completeVision = vi.fn(async () => ({ text: visionAnswer, model: "v", totalDuration: 1 }));
+    const client = {
+      ...base.client,
+      supportsVision: () => true,
+      completeVision,
+    } as unknown as OllamaClient;
+    return { client, completeVision, complete: base.complete };
+  }
+
+  function visionPaperless(content: string, originalFileName: string) {
+    const downloadDocument = vi.fn(async () => new TextEncoder().encode("img").buffer);
+    const downloadThumbnail = vi.fn(async () => new TextEncoder().encode("thumb").buffer);
+    return {
+      client: {
+        getDocument: async (id: number) => ({ id, content, title: "Beleg", original_file_name: originalFileName }),
+        downloadDocument,
+        downloadThumbnail,
+      } as unknown as PaperlessClient,
+      downloadDocument,
+      downloadThumbnail,
+    };
+  }
+
+  it("uses the original image directly when OCR is thin", async () => {
+    const { client, completeVision, complete } = visionOllama([GOOD_JSON], GOOD_JSON);
+    const paperless = visionPaperless("kzt", "beleg.jpg");
+    const extractor = createReceiptExtractor({ ollama: client, paperless: paperless.client });
+    const receipt = await extractor.extract(7);
+    expect(receipt.vendor).toBe("Bäckerei Önal");
+    expect(completeVision).toHaveBeenCalledTimes(1);
+    expect(paperless.downloadDocument).toHaveBeenCalledTimes(1);
+    expect(paperless.downloadThumbnail).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the thumbnail for PDFs and to vision after text fails", async () => {
+    const longOcr = "x".repeat(300);
+    const { client, completeVision } = visionOllama(["prose", "still prose"], GOOD_JSON);
+    const paperless = visionPaperless(longOcr, "scan.pdf");
+    const extractor = createReceiptExtractor({ ollama: client, paperless: paperless.client });
+    const receipt = await extractor.extract(8);
+    expect(receipt.vendor).toBe("Bäckerei Önal");
+    expect(paperless.downloadThumbnail).toHaveBeenCalledTimes(1);
+    expect(completeVision).toHaveBeenCalledTimes(1);
+  });
+});

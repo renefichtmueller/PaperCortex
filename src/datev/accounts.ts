@@ -50,6 +50,12 @@ export const DEFAULT_MONEY_ACCOUNT: Record<Skr, string> = {
   SKR04: "1800",
 };
 
+/** Default cash-box account (Kasse) for receipts paid bar, per chart. */
+export const DEFAULT_CASH_ACCOUNT: Record<Skr, string> = {
+  SKR03: "1000",
+  SKR04: "1600",
+};
+
 /** All category keys the extractor may produce, for UI display. */
 export function knownCategories(): readonly string[] {
   return Object.keys(EXPENSE_ACCOUNTS.SKR03).filter((k) => k !== "default");

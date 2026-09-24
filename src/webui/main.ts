@@ -31,6 +31,7 @@ const started = maybeStartWebUi({
     baseUrl: process.env["OLLAMA_URL"] ?? "http://localhost:11434",
     model: process.env["OLLAMA_MODEL"] ?? "qwen2.5:14b",
     embeddingModel: process.env["OLLAMA_EMBEDDING_MODEL"] ?? "nomic-embed-text",
+  visionModel: process.env["OLLAMA_VISION_MODEL"] || undefined,
   }),
   vectorStore: createVectorStore({
     dbPath: process.env["VECTOR_DB_PATH"] ?? "./data/vectors.db",

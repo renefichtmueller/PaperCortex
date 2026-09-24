@@ -18,6 +18,7 @@ import * as http from "http";
 import {
   buildExport,
   getSettings,
+  matchBankCsv,
   listDocuments,
   previewBookings,
   readExportFile,
@@ -31,6 +32,8 @@ import { PAGE_HTML } from "./page.js";
 import { createTicketStore, type TicketStore } from "./tickets.js";
 
 const BODY_LIMIT_BYTES = 64 * 1024;
+/** Bank CSV uploads are bigger than settings payloads. */
+const CSV_BODY_LIMIT_BYTES = 1024 * 1024;
 const DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "::1", "[::1]"];
 
 export interface WebUiServerConfig {
@@ -40,13 +43,16 @@ export interface WebUiServerConfig {
   readonly allowedHosts?: readonly string[];
 }
 
-function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
+function readJsonBody(
+  req: http.IncomingMessage,
+  limit: number = BODY_LIMIT_BYTES,
+): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
-      if (size > BODY_LIMIT_BYTES) {
+      if (size > limit) {
         reject(new Error("Request body too large"));
         req.destroy();
         return;
@@ -207,6 +213,14 @@ async function route(
         excludeIds?: number[];
       };
       return sendJson(res, 200, await buildExport(deps, body.from, body.to, body.excludeIds));
+    }
+    case "POST /api/match": {
+      const body = (await readJsonBody(req, CSV_BODY_LIMIT_BYTES)) as {
+        from?: string;
+        to?: string;
+        csv?: string;
+      };
+      return sendJson(res, 200, await matchBankCsv(deps, body.from, body.to, body.csv));
     }
     case "POST /api/file/ticket": {
       const body = (await readJsonBody(req)) as { name?: string };

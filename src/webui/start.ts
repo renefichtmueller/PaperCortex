@@ -46,6 +46,7 @@ export function maybeStartWebUi(clients: WebUiClients): boolean {
       ollamaModel: process.env["OLLAMA_MODEL"] ?? "qwen2.5:14b",
       ollamaEmbeddingModel:
         process.env["OLLAMA_EMBEDDING_MODEL"] ?? "nomic-embed-text",
+      ollamaVisionModel: process.env["OLLAMA_VISION_MODEL"] || undefined,
       exportDir: process.env["PAPERCORTEX_EXPORT_DIR"] ?? "./exports",
     };
     const token = process.env["WEBUI_TOKEN"] || undefined;

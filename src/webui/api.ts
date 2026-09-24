@@ -28,6 +28,7 @@ import {
   type BookingPreview,
 } from "../datev/exporter.js";
 import type { ReceiptCache } from "../datev/receipt-cache.js";
+import { createTransactionMatcher } from "../receipt/matcher.js";
 import type { DatevService } from "../datev/service.js";
 import type { VectorStore } from "../embeddings/store.js";
 import type { PaperlessClient } from "../paperless/client.js";
@@ -46,6 +47,7 @@ export interface WebUiDeps {
   readonly ollamaBaseUrl: string;
   readonly ollamaModel: string;
   readonly ollamaEmbeddingModel: string;
+  readonly ollamaVisionModel?: string;
   readonly exportDir: string;
   readonly configPath?: string;
   readonly fetchImpl?: typeof fetch;
@@ -198,11 +200,15 @@ async function checkOllama(deps: WebUiDeps): Promise<DoctorCheck[]> {
             id, label, status: "fail",
             detail: `Modell "${wanted}" fehlt — installieren mit: ollama pull ${wanted}`,
           };
-    return [
-      { id: "ollama", label: "Ollama erreichbar", status: "ok", detail: `${models.length} Modelle installiert` },
+    const checks = [
+      { id: "ollama", label: "Ollama erreichbar", status: "ok", detail: `${models.length} Modelle installiert` } as DoctorCheck,
       modelCheck("ollama-model", "Analyse-Modell", deps.ollamaModel),
       modelCheck("ollama-embedding", "Embedding-Modell", deps.ollamaEmbeddingModel),
     ];
+    if (deps.ollamaVisionModel) {
+      checks.push(modelCheck("ollama-vision", "Vision-Modell (Fotobelege)", deps.ollamaVisionModel));
+    }
+    return checks;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return [{
@@ -362,6 +368,81 @@ export async function buildExport(
     files,
     skipped: result.skipped,
     exportedCount: result.exportedCount,
+  };
+}
+
+/**
+ * Reconcile analyzed receipts against an uploaded bank CSV export.
+ * Read-only evidence for the human: which receipt has a bank transaction,
+ * which has none (cash? missing?), and how many transactions stayed open.
+ */
+export async function matchBankCsv(
+  deps: WebUiDeps,
+  fromRaw: unknown,
+  toRaw: unknown,
+  csvTextRaw: unknown,
+): Promise<Record<string, unknown>> {
+  const { from, to } = parseRange(fromRaw, toRaw);
+  const csvText = z
+    .string({ invalid_type_error: "CSV-Inhalt fehlt" })
+    .min(10, "CSV-Inhalt fehlt oder ist leer")
+    .parse(csvTextRaw);
+  const stored = loadStoredConfig(cfgPath(deps));
+  const documents = await deps.service.listReceiptDocuments(stored.receiptTag, from, to);
+  const candidates = documents
+    .map((doc) => deps.cache.get(doc.id))
+    .filter((cached): cached is NonNullable<typeof cached> => cached !== null)
+    .map((cached) => ({
+      documentId: cached.documentId,
+      vendor: cached.vendor,
+      date: cached.date,
+      totalAmount: cached.totalAmount,
+      currency: cached.currency || "EUR",
+    }));
+  if (candidates.length === 0) {
+    throw new Error(
+      "Keine analysierten Belege im Zeitraum. Erst \u201eJetzt analysieren\u201c ausführen.",
+    );
+  }
+
+  const matcher = createTransactionMatcher();
+  let transactions;
+  try {
+    transactions = matcher.parseBankCsvText(csvText);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `CSV konnte nicht gelesen werden (${detail}) — bitte den Original-Export der Bank mit Semikolon-Spalten verwenden`,
+    );
+  }
+  if (transactions.length === 0) {
+    throw new Error(
+      "Keine Umsätze im CSV gefunden — stimmt das Format (Kopfzeile mit Buchungstag/Betrag, Semikolon-Trennung)?",
+    );
+  }
+
+  const summary = matcher.matchReceipts(candidates, transactions);
+  return {
+    receiptCount: candidates.length,
+    transactionCount: transactions.length,
+    matchRate: summary.matchRate,
+    matched: summary.matched.map((m) => ({
+      documentId: m.receipt.documentId,
+      vendor: m.receipt.vendor,
+      date: m.receipt.date,
+      amount: m.receipt.totalAmount,
+      txnDescription: m.transaction.description.slice(0, 100),
+      txnDate: m.transaction.date,
+      confidence: m.confidence,
+      reasons: m.matchReasons,
+    })),
+    unmatchedReceipts: summary.unmatchedReceipts.map((r) => ({
+      documentId: r.documentId,
+      vendor: r.vendor,
+      date: r.date,
+      amount: r.totalAmount,
+    })),
+    unmatchedTransactionCount: summary.unmatchedTransactions.length,
   };
 }
 

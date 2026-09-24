@@ -62,6 +62,9 @@ export interface TransactionMatcher {
   /** Parse a bank CSV export file into structured transactions. */
   parseBankCsv(filePath: string, format?: BankCsvFormat): readonly BankTransaction[];
 
+  /** Parse bank CSV content (e.g. from an upload) into transactions. */
+  parseBankCsvText(csvText: string, format?: BankCsvFormat): readonly BankTransaction[];
+
   /** Match receipts against bank transactions. */
   matchReceipts(
     receipts: readonly ReceiptMatchCandidate[],
@@ -82,6 +85,23 @@ export type BankCsvFormat = "auto" | "sparkasse" | "ing" | "dkb" | "volksbank" |
  * TODO: Add support for MT940/CAMT.053 bank statement formats
  * TODO: Add date tolerance configuration (match within N days)
  */
+/**
+ * Normalize the date formats German bank exports actually use to ISO:
+ * DD.MM.YYYY and DD.MM.YY (Sparkasse/Volksbank), YYYY-MM-DD passthrough.
+ * Anything else is returned as-is; the matcher treats it as date-unknown.
+ * Without this, `new Date("01.09.2026")` was Invalid Date and the date
+ * signal silently never contributed to any match.
+ */
+export function normalizeBankDate(raw: string): string {
+  const trimmed = raw.trim();
+  const german = /^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$/.exec(trimmed);
+  if (german) {
+    const year = german[3].length === 2 ? `20${german[3]}` : german[3];
+    return `${year}-${german[2]}-${german[1]}`;
+  }
+  return trimmed;
+}
+
 export function createTransactionMatcher(): TransactionMatcher {
   /**
    * Parse bank CSV with auto-detected or specified format.
@@ -90,15 +110,18 @@ export function createTransactionMatcher(): TransactionMatcher {
     filePath: string,
     format: BankCsvFormat = "auto",
   ): readonly BankTransaction[] {
-    const raw = readFileSync(filePath, "utf-8");
+    return parseBankCsvText(readFileSync(filePath, "utf-8"), format);
+  }
 
+  function parseBankCsvText(
+    csvText: string,
+    format: BankCsvFormat = "auto",
+  ): readonly BankTransaction[] {
     // TODO: Implement format auto-detection based on header patterns
-    // TODO: Add support for different CSV delimiters (semicolon for German exports)
-    // TODO: Handle different date formats (DD.MM.YYYY, YYYY-MM-DD, MM/DD/YYYY)
 
     void format; // reserved for future format auto-detection
 
-    const records = parse(raw, {
+    const records = parse(csvText, {
       columns: true,
       skip_empty_lines: true,
       delimiter: ";",
@@ -109,7 +132,9 @@ export function createTransactionMatcher(): TransactionMatcher {
       // Generic column mapping -- override per format
       // TODO: Implement format-specific column mappings
       return {
-        date: record["Buchungstag"] ?? record["Date"] ?? record["Datum"] ?? "",
+        date: normalizeBankDate(
+          record["Buchungstag"] ?? record["Date"] ?? record["Datum"] ?? "",
+        ),
         description:
           record["Verwendungszweck"] ??
           record["Description"] ??
@@ -181,12 +206,14 @@ export function createTransactionMatcher(): TransactionMatcher {
           reasons.push("within_7_days");
         }
 
-        // Vendor name in description
-        if (
-          txn.description
-            .toLowerCase()
-            .includes(receipt.vendor.toLowerCase().slice(0, 8))
-        ) {
+        // Vendor name in description: bank descriptors rarely carry the
+        // full vendor string ("REWE SAGT DANKE"), so match on the first
+        // meaningful word of the vendor instead of a fixed prefix.
+        const vendorToken = receipt.vendor
+          .toLowerCase()
+          .split(/\s+/)
+          .find((word) => word.length >= 4);
+        if (vendorToken && txn.description.toLowerCase().includes(vendorToken)) {
           confidence += 0.2;
           reasons.push("vendor_in_description");
         }
@@ -227,5 +254,5 @@ export function createTransactionMatcher(): TransactionMatcher {
     };
   }
 
-  return { parseBankCsv, matchReceipts };
+  return { parseBankCsv, parseBankCsvText, matchReceipts };
 }

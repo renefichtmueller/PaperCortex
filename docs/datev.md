@@ -93,6 +93,39 @@ npm run datev:check  -- --month 2026-08 --refresh            # Cache ignorieren
 Die KI-Extraktion je Beleg wird lokal gecacht (`data/receipts.db`), der
 zweite Lauf ist darum sofort fertig.
 
+## Zahlart, Kasse und Festschreibung
+
+- **Geldkonto je Zahlart:** Erkennt die Analyse eine Barzahlung, bucht der
+  Export gegen das Kassenkonto (Standard 1000/SKR03 bzw. 1600/SKR04);
+  Kartenzahlungen können über ein eigenes Konto laufen (z. B.
+  Kreditkarten-Verrechnung), sonst gilt das Geldkonto. Die Vorschau zeigt
+  je Beleg Zahlart und Gegenkonto.
+- **Festschreibung (GoBD):** Der Schalter in den Einstellungen setzt das
+  Festschreibungskennzeichen im Stapel-Header und an jeder Buchung. Nur
+  aktivieren, wenn die Kanzlei festgeschriebene Stapel verlangt.
+
+## Kontoabgleich (optional)
+
+Schritt 4 im Export-Reiter: Bank-CSV-Export hochladen (Sparkasse,
+Volksbank, ING, DKB; Semikolon-Spalten, Datumsformat TT.MM.JJJJ wird
+erkannt). PaperCortex zeigt, welcher Beleg einen Kontoumsatz hat, welcher
+nicht (bar gezahlt? fehlt?), und wie viele Umsätze ohne Beleg blieben.
+Reine Kontrolle, gebucht wird dabei nichts.
+
+## Fotobelege (Vision-Modell)
+
+Mit `OLLAMA_VISION_MODEL` in der `.env` (z. B. `minicpm-v`) liest
+PaperCortex das Belegbild direkt, sobald der OCR-Text zu dünn ist oder die
+Textanalyse scheitert: bei Original-Bilddateien das Bild selbst, bei
+PDFs die gerenderte Vorschauseite. Ohne gesetztes Modell ändert sich
+nichts.
+
+## Sprache
+
+Die Oberfläche gibt es auf Deutsch und Englisch (Umschalter oben rechts).
+Buchungswarnungen und der DATEV-Bericht bleiben bewusst deutsch: Sie
+richten sich an die deutsche Kanzlei und wandern in die Exportdateien.
+
 ## Grundsätze (warum der Export „langweilig" korrekt ist)
 
 - **Nie stillschweigend falsch buchen.** Ein Beleg mit unlesbarem Datum,

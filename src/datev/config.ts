@@ -11,7 +11,7 @@ import { dirname, join } from "path";
 
 import { z } from "zod";
 
-import { DEFAULT_MONEY_ACCOUNT, type Skr } from "./accounts.js";
+import { DEFAULT_CASH_ACCOUNT, DEFAULT_MONEY_ACCOUNT, type Skr } from "./accounts.js";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -46,6 +46,18 @@ export const datevConfigSchema = z.object({
     .string()
     .regex(/^\d{4,8}$/, "moneyAccount must be 4-8 digits")
     .optional(),
+  /** Cash-box account for receipts paid bar (default per chart: 1000/1600). */
+  cashAccount: z
+    .string()
+    .regex(/^\d{4,8}$/, "cashAccount must be 4-8 digits")
+    .optional(),
+  /** Offset account for card payments (default: the money account). */
+  cardAccount: z
+    .string()
+    .regex(/^\d{4,8}$/, "cardAccount must be 4-8 digits")
+    .optional(),
+  /** Mark exported batches festgeschrieben (GoBD). Ask the tax advisor. */
+  lockBookings: z.boolean().default(false),
   /** Tax rate assumed when the receipt does not state one. */
   defaultTaxRate: z.union([z.literal(19), z.literal(7), z.literal(0)]).default(19),
   /** Per-category account overrides, e.g. { travel: "4670" }. */
@@ -102,15 +114,18 @@ export function saveStoredConfig(
 // Environment overrides
 // ---------------------------------------------------------------------------
 
-const ENV_KEYS = {
-  DATEV_CONSULTANT_NUMBER: "consultantNumber",
-  DATEV_CLIENT_NUMBER: "clientNumber",
-  DATEV_SKR: "skr",
-  DATEV_FISCAL_YEAR_START_MONTH: "fiscalYearStartMonth",
-  DATEV_ACCOUNT_LENGTH: "accountLength",
-  DATEV_MONEY_ACCOUNT: "moneyAccount",
-  DATEV_DEFAULT_TAX_RATE: "defaultTaxRate",
-} as const;
+const ENV_KEYS: Record<string, { field: string; kind: "string" | "number" | "boolean" }> = {
+  DATEV_CONSULTANT_NUMBER: { field: "consultantNumber", kind: "number" },
+  DATEV_CLIENT_NUMBER: { field: "clientNumber", kind: "number" },
+  DATEV_SKR: { field: "skr", kind: "string" },
+  DATEV_FISCAL_YEAR_START_MONTH: { field: "fiscalYearStartMonth", kind: "number" },
+  DATEV_ACCOUNT_LENGTH: { field: "accountLength", kind: "number" },
+  DATEV_MONEY_ACCOUNT: { field: "moneyAccount", kind: "string" },
+  DATEV_CASH_ACCOUNT: { field: "cashAccount", kind: "string" },
+  DATEV_CARD_ACCOUNT: { field: "cardAccount", kind: "string" },
+  DATEV_LOCK_BOOKINGS: { field: "lockBookings", kind: "boolean" },
+  DATEV_DEFAULT_TAX_RATE: { field: "defaultTaxRate", kind: "number" },
+};
 
 /**
  * Merge stored DATEV settings with DATEV_* environment overrides and
@@ -123,11 +138,13 @@ export function resolveDatevConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): DatevConfig | null {
   const merged: Record<string, unknown> = { ...(stored.datev ?? {}) };
-  for (const [envKey, field] of Object.entries(ENV_KEYS)) {
+  for (const [envKey, { field, kind }] of Object.entries(ENV_KEYS)) {
     const value = env[envKey];
     if (value === undefined || value === "") continue;
     merged[field] =
-      field === "skr" || field === "moneyAccount" ? value : Number(value);
+      kind === "number" ? Number(value)
+      : kind === "boolean" ? ["1", "true", "yes"].includes(value.toLowerCase())
+      : value;
   }
   if (Object.keys(merged).length === 0) return null;
 
@@ -135,5 +152,7 @@ export function resolveDatevConfig(
   return {
     ...parsed,
     moneyAccount: parsed.moneyAccount ?? DEFAULT_MONEY_ACCOUNT[parsed.skr as Skr],
+    cashAccount: parsed.cashAccount ?? DEFAULT_CASH_ACCOUNT[parsed.skr as Skr],
+    cardAccount: parsed.cardAccount ?? parsed.moneyAccount ?? DEFAULT_MONEY_ACCOUNT[parsed.skr as Skr],
   };
 }

@@ -26,14 +26,19 @@ export interface ReceiptForExport {
   readonly category: string | null;
   readonly currency?: string;
   readonly confidence?: number;
+  /** Payment method as extracted (free text: "bar", "card", "EC" ...). */
+  readonly paymentMethod?: string | null;
   /** Net amount as printed on the receipt, for the arithmetic sanity check. */
   readonly subtotal?: number | null;
   /** Tax amount as printed on the receipt, for the arithmetic sanity check. */
   readonly taxAmount?: number | null;
 }
 
+export type PaymentKind = "cash" | "card" | "bank";
+
 export interface BookingPreview {
   readonly documentId: number;
+  readonly paymentKind: PaymentKind;
   readonly vendor: string;
   readonly date: string;
   readonly amount: number;
@@ -60,6 +65,31 @@ export interface DatevBatch {
 const TAX_KEYS: Record<number, string> = { 19: "9", 7: "8", 0: "" };
 
 const LOW_CONFIDENCE_THRESHOLD = 0.6;
+
+const CASH_WORDS = ["bar", "cash", "barzahlung", "bargeld"];
+const CARD_WORDS = [
+  "karte", "card", "ec", "girocard", "kreditkarte", "credit", "debit",
+  "visa", "mastercard", "maestro", "amex", "apple pay", "google pay", "kontaktlos",
+];
+
+/**
+ * Normalize the extractor's free-text payment method. Unknown or missing
+ * methods count as bank transfer -- that is the money account default and
+ * matches how most receipts are actually paid.
+ */
+export function normalizePaymentMethod(raw: string | null | undefined): PaymentKind {
+  const value = (raw ?? "").toLowerCase();
+  if (CASH_WORDS.some((w) => value.includes(w))) return "cash";
+  if (CARD_WORDS.some((w) => value.includes(w))) return "card";
+  return "bank";
+}
+
+/** Offset account for a payment kind, falling back to the money account. */
+function offsetAccountFor(kind: PaymentKind, config: DatevConfig): string {
+  if (kind === "cash" && config.cashAccount) return config.cashAccount;
+  if (kind === "card" && config.cardAccount) return config.cardAccount;
+  return config.moneyAccount ?? "";
+}
 /** Rounding slack for receipt arithmetic (printed values are rounded). */
 const AMOUNT_TOLERANCE = 0.02;
 
@@ -176,13 +206,15 @@ export function mapReceiptToBooking(
   }
   warnings.push(...arithmeticWarnings(receipt, taxRate));
 
+  const paymentKind = normalizePaymentMethod(receipt.paymentMethod);
   return {
     documentId: receipt.documentId,
+    paymentKind,
     vendor: receipt.vendor,
     date: receipt.date,
     amount: receipt.totalAmount,
     account,
-    offsetAccount: config.moneyAccount ?? "",
+    offsetAccount: offsetAccountFor(paymentKind, config),
     taxKey,
     taxRate,
     postingText: receipt.vendor,
@@ -260,6 +292,7 @@ export function buildDatevBatch(
   const dateTo = compactDate(sorted[sorted.length - 1]);
 
   const rows: ExtfBookingRow[] = bookings.map((b) => ({
+    locked: config.lockBookings,
     amount: b.amount,
     debitCredit: "S",
     account: b.account,
@@ -280,6 +313,7 @@ export function buildDatevBatch(
       dateTo,
       label: `PaperCortex Belege ${dateFrom}-${dateTo}`,
       skrCode: config.skr === "SKR03" ? "03" : "04",
+      lockBookings: config.lockBookings,
       generatedAt,
     },
     rows,

@@ -28,10 +28,14 @@ export interface ExtfHeaderInput {
   readonly label: string;
   /** Chart of accounts code: "03" or "04". */
   readonly skrCode: string;
+  /** Header field 21: mark the whole batch festgeschrieben (GoBD). */
+  readonly lockBookings?: boolean;
   readonly generatedAt: Date;
 }
 
 export interface BookingRow {
+  /** Festschreibung flag for field 114 (GoBD lock). */
+  readonly locked?: boolean;
   readonly amount: number;
   readonly debitCredit: "S" | "H";
   /** Konto — for an expense booking in Soll: the expense account. */
@@ -243,7 +247,7 @@ export function buildExtfHeader(input: ExtfHeaderInput): string {
     `""`,
     "1",
     "0",
-    "0",
+    input.lockBookings ? "1" : "0",
     `"EUR"`,
     "", `""`, "", `""`,
     `"${input.skrCode}"`,
@@ -269,7 +273,7 @@ export function buildBookingRow(booking: BookingRow): string {
   fields[FIELD_POSITION.documentDate - 1] = booking.documentDate;
   fields[FIELD_POSITION.documentField1 - 1] = `"${sanitizeText(booking.documentField1, 36)}"`;
   fields[FIELD_POSITION.postingText - 1] = `"${sanitizeText(booking.postingText, 60)}"`;
-  fields[FIELD_POSITION.lockFlag - 1] = "0";
+  fields[FIELD_POSITION.lockFlag - 1] = booking.locked ? "1" : "0";
   return fields.join(";");
 }
 

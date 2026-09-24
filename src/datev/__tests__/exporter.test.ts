@@ -87,6 +87,42 @@ describe("mapReceiptToBooking", () => {
   });
 });
 
+describe("payment methods", () => {
+  const config = { ...CONFIG, cashAccount: "1000", cardAccount: "1360" };
+
+  it("books cash receipts against the cash account", () => {
+    const booking = mapReceiptToBooking(receipt({ paymentMethod: "Barzahlung" }), config);
+    expect(booking.paymentKind).toBe("cash");
+    expect(booking.offsetAccount).toBe("1000");
+  });
+
+  it("books card receipts against the card account", () => {
+    const booking = mapReceiptToBooking(receipt({ paymentMethod: "EC-Karte kontaktlos" }), config);
+    expect(booking.paymentKind).toBe("card");
+    expect(booking.offsetAccount).toBe("1360");
+  });
+
+  it("defaults unknown methods to the money account", () => {
+    const booking = mapReceiptToBooking(receipt({ paymentMethod: null }), config);
+    expect(booking.paymentKind).toBe("bank");
+    expect(booking.offsetAccount).toBe("1200");
+  });
+});
+
+describe("Festschreibung", () => {
+  it("marks header and every row when lockBookings is enabled", () => {
+    const locked = buildDatevBatch([receipt()], { ...CONFIG, lockBookings: true });
+    const lines = locked.file.toString("latin1").trim().split("\r\n");
+    expect(lines[0].split(";")[20]).toBe("1");
+    expect(lines[2].split(";")[113]).toBe("1");
+
+    const open = buildDatevBatch([receipt()], CONFIG);
+    const openLines = open.file.toString("latin1").trim().split("\r\n");
+    expect(openLines[0].split(";")[20]).toBe("0");
+    expect(openLines[2].split(";")[113]).toBe("0");
+  });
+});
+
 describe("arithmetic sanity checks", () => {
   it("stays quiet when the printed amounts add up", () => {
     const booking = mapReceiptToBooking(
